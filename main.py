@@ -15,10 +15,46 @@ class drawBase():
 
     def drawBase(self):
         cv2.rectangle(self.img, (self.x - int(20 * self.scale), self.y + int(10 * self.scale)), (self.x + int(25 * self.scale), self.y + int(40 * self.scale)), self.color, self.thickness)
-        text_size = cv2.getTextSize(self.text, cv2.FONT_HERSHEY_COMPLEX, 0.8 * self.scale, 1)[0] # get text size
-        text_x = (self.x - int(20 * self.scale)) - int(text_size[0] / 2) # adjust text position to centre
-        text_y = (self.y + int(10 * self.scale)) + int(text_size[1] / 2) # same as above
+        text_size = cv2.getTextSize(self.text, cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, 1)[0] # get text size
+        text_x = self.x - int(text_size[0] / 2) + 2 # adjust text position to centre
+        text_y = self.y + int(text_size[1] / 2) + 45 # same as above
         cv2.putText(self.img, self.text, (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, (0,0,0))
+
+#this class will draw the virual keyboard used for input for the code system
+class VirtualKeyboard():
+    def __init__(self, img):
+        # variables for positioning 
+        self.offsetX = 50
+        self.offsetY = 400
+        self.scale = 1.5
+        self.img = img
+        # storage for keys
+        self.keys = [
+            ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+            ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+            ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+            ["Z", "X", "C", "V", "B", "N", "M"]
+        ]
+
+    # handles drawing of the keyboard
+    def drawKeyboard(self, img, offsetX, offsetY, scale):
+        key_x = offsetX
+        key_y = offsetY
+
+        #loop through rows of keys
+        for row in self.keys:
+            #loop through keys on row
+            for key in row:
+                key_button = drawBase(img, key_x, key_y, scale, (255, 255, 255), 2, key)
+                key_button.drawBase()
+                # increment positioning
+                key_x += 50 * scale
+            # increment row positioning
+            key_x = offsetX
+            key_y += 40 * scale
+    # for key storage
+    def get_keys(self):
+        return self.keys
 
 # this class is for drawing the gui for the program using a data store for each block
 class GUINodes():
@@ -116,6 +152,7 @@ class mainLoop():
                 height = int(flipped_image.shape[0] * 2)
                 resized_image = cv2.resize(flipped_image, (width, height))
                 GUINodes(resized_image)
+                VirtualKeyboard(resized_image)
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
