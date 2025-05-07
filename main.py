@@ -92,18 +92,30 @@ class GUINodes():
 class Connector():
     def __init__(self, img):
         self.img = img
+        cv2.circle(img, (120, 130), 5, (255,255,245), -1)
+        cv2.line(img, (120, 130), (150, 130), (255,255,245), 2)
+        cv2.circle(img, (150, 130), 5, (255,255,245), -1)
+    
+    # this function handles the drawing of the active connections
+    def drawConnection(self):
+        return
 
 # this class draws the background for the main GUI
 class DrawBackground():
     def __init__(self, img):
         self.img = img
-        cv2.rectangle(img, (10, 20), (1220, 100), (19,69,139), -1)
-        cv2.rectangle(img, (50, 700), (870, 950), (19,69,139), -1)
+        cv2.rectangle(img, (10, 20), (1220, 100), (19,69,139), -1) # node background
+        cv2.rectangle(img, (50, 700), (870, 950), (19,69,139), -1) # keyboard background
+        cv2.rectangle(img, (10, 120), (158, 140), (19,69,139), -1) # connector background
+        cv2.putText(img, "Connector:", (12, 135), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0,0,0)) # connector text 
 
 # this class handles the drawing for the output area
 class DrawOutput():
     def __init__(self, img):
         self.img = img
+        cv2.rectangle(img, (885, 120), (1250, 950), (19,69,139), -1)
+        cv2.putText(img, "OUTPUT", (940, 170), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # output title
+        cv2.line(img, (895, 200), (1240, 200), (0,0,0), 2)
 
 #this class draws a cursor at finger location
 class DrawCursor():
@@ -175,6 +187,8 @@ class mainLoop():
                 height = int(flipped_image.shape[0] * 2)
                 resized_image = cv2.resize(flipped_image, (width, height))
                 DrawBackground(resized_image)
+                DrawOutput(resized_image)
+                Connector(resized_image)
                 nodes = GUINodes(resized_image)
                 vk = VirtualKeyboard(resized_image)
                 vk.drawKeyboard()
