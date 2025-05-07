@@ -24,8 +24,8 @@ class drawBase():
 class VirtualKeyboard():
     def __init__(self, img):
         # variables for positioning 
-        self.offsetX = 50
-        self.offsetY = 400
+        self.offsetX = 100
+        self.offsetY = 700
         self.scale = 1.5
         self.img = img
         # storage for keys
@@ -35,23 +35,24 @@ class VirtualKeyboard():
             ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
             ["Z", "X", "C", "V", "B", "N", "M"]
         ]
-
     # handles drawing of the keyboard
-    def drawKeyboard(self, img, offsetX, offsetY, scale):
-        key_x = offsetX
-        key_y = offsetY
+    def drawKeyboard(self):
+        key_x = self.offsetX
+        key_y = self.offsetY
+        scale = self.scale
+        img = self.img
 
         #loop through rows of keys
         for row in self.keys:
             #loop through keys on row
             for key in row:
-                key_button = drawBase(img, key_x, key_y, scale, (255, 255, 255), 2, key)
+                key_button = drawBase(img, key_x, key_y, scale, (220,220,210), -1, key)
                 key_button.drawBase()
                 # increment positioning
-                key_x += 50 * scale
+                key_x += 80 
             # increment row positioning
-            key_x = offsetX
-            key_y += 40 * scale
+            key_x = self.offsetX
+            key_y += 55
     # for key storage
     def get_keys(self):
         return self.keys
@@ -86,6 +87,28 @@ class GUINodes():
     # for storage of disctionairy
     def get_boxes(self):
         return self.boxes
+
+# this class handles the connector tool drawing
+class Connector():
+    def __init__(self, img):
+        self.img = img
+
+# this class draws the background for the main GUI
+class DrawBackground():
+    def __init__(self, img):
+        self.img = img
+        cv2.rectangle(img, (10, 20), (1220, 100), (19,69,139), -1)
+        cv2.rectangle(img, (50, 700), (870, 950), (19,69,139), -1)
+
+# this class handles the drawing for the output area
+class DrawOutput():
+    def __init__(self, img):
+        self.img = img
+
+#this class draws a cursor at finger location
+class DrawCursor():
+    def __init__(self, img):
+        self.img = img
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
@@ -151,8 +174,10 @@ class mainLoop():
                 width = int(flipped_image.shape[1] * 2)
                 height = int(flipped_image.shape[0] * 2)
                 resized_image = cv2.resize(flipped_image, (width, height))
-                GUINodes(resized_image)
-                VirtualKeyboard(resized_image)
+                DrawBackground(resized_image)
+                nodes = GUINodes(resized_image)
+                vk = VirtualKeyboard(resized_image)
+                vk.drawKeyboard()
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
