@@ -14,30 +14,42 @@ class drawBase():
         self.text = text
 
     def drawBase(self):
-        cv2.rectangle(self.img, (self.x - int(10 * self.scale), self.y + int(20 * self.scale)), (self.x + int(10 * self.scale), self.y + int(60 * self.scale)), self.color, self.thickness)
-        cv2.putText(self.img, self.text, (self.x + int(10 * self.scale), self.y + int(20 * self.scale)), cv2.FONT_HERSHEY_COMPLEX, 0.8, self.color)
+        cv2.rectangle(self.img, (self.x - int(20 * self.scale), self.y + int(10 * self.scale)), (self.x + int(25 * self.scale), self.y + int(40 * self.scale)), self.color, self.thickness)
+        text_size = cv2.getTextSize(self.text, cv2.FONT_HERSHEY_COMPLEX, 0.8 * self.scale, 1)[0] # get text size
+        text_x = (self.x - int(20 * self.scale)) - int(text_size[0] / 2) # adjust text position to centre
+        text_y = (self.y + int(10 * self.scale)) + int(text_size[1] / 2) # same as above
+        cv2.putText(self.img, self.text, (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, (0,0,0))
 
 # this class is for drawing the gui for the program using a data store for each block
 class GUINodes():
     def __init__(self, img):
+        # horizontal gap between nodes
+        offsetX = 100
+        # vertical gap between nodes
+        offsetY = 10
+        #scale
+        scale = 2
         # dictionairy for each node, draws them on screen and stores them for referenceing 
-        boxes = {
-            "Print": drawBase(img, 20, 40, 1, (0,0,255), -1, "Print"),
-            "If": drawBase(img, 80, 90, 1, (0,0,255), -1, "If Statement"),
-            "Run": drawBase(img, 100, 150, 1, (255,0,0), -1, "Run"),
-            "Timer": drawBase(img, 180, 200, 1, (0,255,0), -1, "Timer"),
-            "For": drawBase(img, 200, 250, 1, (255,255,0), -1, "For Loop"),
-            "Input": drawBase(img, 250, 300, 1, (255,255,245), -1, "Input"),
-            "Add": drawBase(img, 50, 20, 1, (120,120,110), -1, "Add"),
-            "Subtract": drawBase(img, 150, 120, 1, (220,220,210), -1, "Subtract"),
-            "Divide": drawBase(img, 150, 120, 1, (220,220,210), -1, "Divide"),
-            "Equals": drawBase(img, 150, 120, 1, (220,220,210), -1, "Equals"),
-            "LessThan": drawBase(img, 150, 120, 1, (220,220,210), -1, "Less Than"),
-            "MoreThan": drawBase(img, 150, 120, 1, (220,220,210), -1, "More Than")
+        self.boxes = {
+            "Print": drawBase(img, 60, offsetY, scale, (0,0,255), -1, "Print"),
+            "If": drawBase(img, 60 + offsetX, offsetY, scale, (0,0,255), -1, "If"),
+            "Run": drawBase(img, 60 + 2 * offsetX, offsetY, scale, (255,0,0), -1, "Run"),
+            "Timer": drawBase(img, 60 + 3 * offsetX, offsetY, scale, (0,255,0), -1, "Timer"),
+            "For": drawBase(img, 60 + 4 * offsetX, offsetY, scale, (255,255,0), -1, "For"),
+            "Input": drawBase(img, 60 + 5 * offsetX, offsetY, scale, (255,255,245), -1, "Input"),
+            "Add": drawBase(img, 60 + 6 * offsetX, offsetY, scale, (120,120,110), -1, "Add"),
+            "Subtract": drawBase(img, 60 + 7 * offsetX, offsetY, scale, (220,220,210), -1, "Subtract"),
+            "Divide": drawBase(img, 60 + 8 * offsetX, offsetY, scale, (220,220,210), -1, "Divide"),
+            "Equals": drawBase(img, 60 + 9 * offsetX, offsetY, scale, (220,220,210), -1, "Equals"),
+            "LessThan": drawBase(img, 60 + 10 * offsetX, offsetY, scale, (220,220,210), -1, "Less Than"),
+            "MoreThan": drawBase(img, 60 + 11 * offsetX, offsetY, scale, (220,220,210), -1, "More Than")
         }
         # handles the actual drawing of nodes
-        for box in boxes:
+        for box in self.boxes.values():
             box.drawBase()
+    # for storage of disctionairy
+    def get_boxes(self):
+        return self.boxes
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
@@ -100,9 +112,12 @@ class mainLoop():
                 
                 # gui
                 flipped_image = cv2.flip(image, 1)
-                GUINodes(flipped_image)
+                width = int(flipped_image.shape[1] * 2)
+                height = int(flipped_image.shape[0] * 2)
+                resized_image = cv2.resize(flipped_image, (width, height))
+                GUINodes(resized_image)
                 # below code displays image and gives ability to end stream on q press
-                cv2.imshow('MediaPipe Hands', cv2.flip(flipped_image, 1))
+                cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
                     break
         self.cap.release()
