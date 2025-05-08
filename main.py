@@ -1,4 +1,6 @@
 import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 import cv2
 import codeCalls
 
@@ -20,6 +22,13 @@ class drawBase():
         text_y = self.y + int(text_size[1] / 2) + 45 # same as above
         cv2.putText(self.img, self.text, (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, (0,0,0))
 
+    def get_bounds(self):
+        x1 = int(self.x - 20 * self.scale)
+        y1 = int(self.y + 10 * self.scale)
+        x2 = int(self.x + 25 * self.scale)
+        y2 = int(self.y + 40 * self.scale)
+        return x1, y1, x2, y2
+
 #this class will draw the virual keyboard used for input for the code system
 class VirtualKeyboard():
     def __init__(self, img):
@@ -33,7 +42,7 @@ class VirtualKeyboard():
             ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
             ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
             ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-            ["Z", "X", "C", "V", "B", "N", "M"]
+            ["Z", "X", "C", "V", "B", "N", "M", "SPACE"]
         ]
     # handles drawing of the keyboard
     def drawKeyboard(self):
@@ -132,7 +141,32 @@ class mainLoop():
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
         self.mp_hands = mp.solutions.hands
+        # enabling api use
         self.model_path = model_path
+        self.BaseOptions = mp.tasks.BaseOptions
+        self.GestureRecognizer = vision.GestureRecognizer
+        self.GestureRecognizerOptions = vision.GestureRecognizerOptions
+        self.VisionRunningMode = mp.tasks.vision.RunningMode
+        options = self.GestureRecognizerOptions(base_options = self.BaseOptions(model_asset_path=model_path),
+                                               running_mode=self.VisionRunningMode.LIVE_STREAM,
+                                                 result_callback=self.IdentifyGesture)
+        self.recognizer = self.GestureRecognizer.create_from_options(options)
+        self.dragged_node = None # detects node dragging
+        self.placed_nodes = {} # storage for placed nodes
+        self.is_dragging = False # detects when dragging happening
+
+    # this function handles the gesture recognition
+    def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
+        if result.gestures:
+            confidence = result.gestures[0][0].score
+            gesture = result.gestures[0][0].cetegory_name # stores current gesture
+            if confidence > 0.5 and gesture:
+                # if gesture is closed fist then node is places and stored
+                if gesture == "Closed_Fist":
+                    self.placed_nodes.append(self.dragged_node)
+                    self.dragged_node = None
+                    self.is_dragging = False
+        return
 
     # this function is for the moving of nodes when they are selected by user
     def MoveNodes():
@@ -180,7 +214,22 @@ class mainLoop():
                             self.mp_hands.HAND_CONNECTIONS,
                             self.mp_drawing_styles.get_default_hand_landmarks_style(),
                             self.mp_drawing_styles.get_default_hand_connections_style())
-                
+                    # for index finger collision
+                    index_finger = hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
+                    finger_x = int(index_finger.x * width * 2)
+                    finger_y = int(index_finger.y * height * 2)
+                    if not self.is_dragging:
+                        for label, box in nodes.get_boxes().items():
+                            x1, y1, x2, y2 = box.get_bounds()
+                            if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
+                                self.dragged_node = drawBase(resized_image, finger_x, finger_y, box.scale, box.color, -1, label)
+                                self.is_dragging = True
+                                break
+                    else:
+                        # for continued dragging
+                        self.dragged_node.x = finger_x
+                        self.dragged_node.y = finger_y
+                        self.dragged_node.drawBase()
                 # gui
                 flipped_image = cv2.flip(image, 1)
                 width = int(flipped_image.shape[1] * 2)
@@ -192,6 +241,9 @@ class mainLoop():
                 nodes = GUINodes(resized_image)
                 vk = VirtualKeyboard(resized_image)
                 vk.drawKeyboard()
+                # draw dragged nodes
+                for node in self.placed_nodes:
+                    node.drawBase()
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
