@@ -131,23 +131,14 @@ class DrawCursor():
     def __init__(self, img):
         self.img = img
 
-# this class houses the logic for the main running loop of the hand tracking
-class mainLoop():
-    def __init__(self, model_path, webcam_id): # init function sets variables for use
-        self.cap = cv2.VideoCapture(webcam_id) ## sets video capture with webcam id 0
-        if not self.cap.isOpened():
-            print("error openning webcam") # debug
-            return
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
-        self.mp_hands = mp.solutions.hands
-        # enabling api use
-        self.model_path = model_path
+# this class handles the gesture recognition
+class GestureRecognizer():
+    def __init__(self, img, model_path, nodes, index_finger, width, height):
         self.BaseOptions = mp.tasks.BaseOptions
         self.GestureRecognizer = vision.GestureRecognizer
         self.GestureRecognizerOptions = vision.GestureRecognizerOptions
         self.VisionRunningMode = mp.tasks.vision.RunningMode
-        options = self.GestureRecognizerOptions(base_options = self.BaseOptions(model_asset_path=model_path),
+        options = self.GestureRecognizerOptions(base_options = self.BaseOptions(model_path),
                                                running_mode=self.VisionRunningMode.LIVE_STREAM,
                                                  result_callback=self.IdentifyGesture)
         self.recognizer = self.GestureRecognizer.create_from_options(options)
@@ -166,7 +157,40 @@ class mainLoop():
                     self.placed_nodes.append(self.dragged_node)
                     self.dragged_node = None
                     self.is_dragging = False
-        return
+    
+    def draggedNodes(self, img, nodes, index_finger, width, height):
+        # for index finger collision
+        finger_x = int(index_finger.x * width * 2)
+        finger_y = int(index_finger.y * height * 2)
+        if not self.is_dragging:
+            for label, box in nodes.get_boxes().items():
+                x1, y1, x2, y2 = box.get_bounds()
+                if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
+                    self.dragged_node = drawBase(img, finger_x, finger_y, box.scale, box.color, -1, label)
+                    self.is_dragging = True
+                    break
+                else:
+                     # for continued dragging
+                    self.dragged_node.x = finger_x
+                    self.dragged_node.y = finger_y
+                    self.dragged_node.drawBase()
+        # draw dragged nodes
+        for node in self.placed_nodes:
+            node.drawBase()
+
+# this class houses the logic for the main running loop of the hand tracking
+class mainLoop():
+    def __init__(self, model_path, webcam_id): # init function sets variables for use
+        self.cap = cv2.VideoCapture(webcam_id) ## sets video capture with webcam id 0
+        if not self.cap.isOpened():
+            print("error openning webcam") # debug
+            return
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_drawing_styles = mp.solutions.drawing_styles
+        self.mp_hands = mp.solutions.hands
+        # enabling api use
+        self.model_path = model_path
+        
 
     # this function is for the moving of nodes when they are selected by user
     def MoveNodes():
@@ -214,22 +238,10 @@ class mainLoop():
                             self.mp_hands.HAND_CONNECTIONS,
                             self.mp_drawing_styles.get_default_hand_landmarks_style(),
                             self.mp_drawing_styles.get_default_hand_connections_style())
-                    # for index finger collision
                     index_finger = hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
-                    finger_x = int(index_finger.x * width * 2)
-                    finger_y = int(index_finger.y * height * 2)
-                    if not self.is_dragging:
-                        for label, box in nodes.get_boxes().items():
-                            x1, y1, x2, y2 = box.get_bounds()
-                            if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
-                                self.dragged_node = drawBase(resized_image, finger_x, finger_y, box.scale, box.color, -1, label)
-                                self.is_dragging = True
-                                break
-                    else:
-                        # for continued dragging
-                        self.dragged_node.x = finger_x
-                        self.dragged_node.y = finger_y
-                        self.dragged_node.drawBase()
+                    # call gesture recogniser class
+                    gr = GestureRecognizer(image, model_path, nodes, index_finger, width, height)
+                    gr.draggedNodes()
                 # gui
                 flipped_image = cv2.flip(image, 1)
                 width = int(flipped_image.shape[1] * 2)
@@ -241,9 +253,6 @@ class mainLoop():
                 nodes = GUINodes(resized_image)
                 vk = VirtualKeyboard(resized_image)
                 vk.drawKeyboard()
-                # draw dragged nodes
-                for node in self.placed_nodes:
-                    node.drawBase()
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
