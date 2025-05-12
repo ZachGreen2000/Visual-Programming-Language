@@ -100,15 +100,32 @@ class GUINodes():
 
 # this class handles the connector tool drawing
 class Connector():
-    def __init__(self, img):
+    def __init__(self, img, index_finger, width, height):
         self.img = img
+        self.index_finger = index_finger
+        self.width = width
+        self.height = height
+        self.connect_Mode = False
         cv2.circle(img, (120, 130), 5, (255,255,245), -1)
         cv2.line(img, (120, 130), (150, 130), (255,255,245), 2)
         cv2.circle(img, (150, 130), 5, (255,255,245), -1)
+
+        # for index finger collision
+        self.finger_x = int(self.index_finger.x * self.width * 2)
+        self.finger_y = int(self.index_finger.y * self.height * 2)
     
+    # this function detects connector tool collision
+    def detectConnection(self):
+        x1 = 120, y1 = 130, x2 = 150, y2 = 130 # same as tool location
+        if x1 <= self.finger_x <= x2 and y1 <= self.finger_y <= y2: # detect collision
+            self.connect_Mode = True
+            self.drawConnection()
+            return self.connect_Mode
+        else:
+            self.connect_Mode = False
     # this function handles the drawing of the active connections
     def drawConnection(self):
-        return
+        cv2.circle(self.img, (self.finger_x, self.finger_y), 5, (255, 255, 255), -1)
 
 # this class draws the background for the main GUI
 class DrawBackground():
@@ -150,6 +167,7 @@ class GestureRecognizer():
         self.hovered_node = None
         self.hover_start_time = None
         self.drag_delay = 0.5
+        self.con = Connector()
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
@@ -197,6 +215,13 @@ class GestureRecognizer():
         # draw dragged nodes
         for node in self.placed_nodes:
             node.drawBase()
+    # this function will handle the connections made between places nodes and store the connections for use
+    def process_connections(self, img, index_finger, width, height, placed_nodes):
+        connect_mode = self.con.detectConnection()
+        if connect_mode == True:
+            for label, node in placed_nodes.items():
+                x1, y1, x2, y2 = node.get_bounds()
+                ### continue here ###
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
@@ -210,10 +235,6 @@ class mainLoop():
         self.mp_hands = mp.solutions.hands
         # enabling api use
         self.model_path = model_path
-    
-    # this function is to draw the lines that connect the nodes
-    def ConnectNodes():
-        return
     
     # this function is called to run the app and detects hand and draws landmarks
     # using the landmarks and gesture recognition it calls functions for gesture based coding implementation
@@ -239,7 +260,6 @@ class mainLoop():
                 resized_image = cv2.resize(flipped_image, (width, height))
                 DrawBackground(resized_image)
                 DrawOutput(resized_image)
-                Connector(resized_image)
                 nodes = GUINodes(resized_image)
                 vk = VirtualKeyboard(resized_image)
                 vk.drawKeyboard()
@@ -262,6 +282,9 @@ class mainLoop():
                     # call gesture recogniser class
                     gr = GestureRecognizer(image, model_path, nodes, index_finger, width, height)
                     gr.draggedNodes()
+                    # draws connection and detection of tool use
+                    con = Connector(resized_image, index_finger, width, height)
+                    con.detectConnection()
                 
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
