@@ -3,6 +3,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import cv2
 import codeCalls
+import time
 
 # this classdraws the shape of each block and adds the text
 class drawBase():
@@ -145,35 +146,54 @@ class GestureRecognizer():
         self.dragged_node = None # detects node dragging
         self.placed_nodes = {} # storage for placed nodes
         self.is_dragging = False # detects when dragging happening
+        # delay tracking variables
+        self.hovered_node = None
+        self.hover_start_time = None
+        self.drag_delay = 0.5
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
         if result.gestures:
             confidence = result.gestures[0][0].score
-            gesture = result.gestures[0][0].cetegory_name # stores current gesture
+            gesture = result.gestures[0][0].category_name # stores current gesture
             if confidence > 0.5 and gesture:
                 # if gesture is closed fist then node is places and stored
                 if gesture == "Closed_Fist":
-                    self.placed_nodes.append(self.dragged_node)
+                    self.placed_nodes[len(self.placed_nodes)] = self.dragged_node
                     self.dragged_node = None
                     self.is_dragging = False
+                    self.hovered_node = None
+                    self.hover_start_time = None
     
     def draggedNodes(self, img, nodes, index_finger, width, height):
         # for index finger collision
         finger_x = int(index_finger.x * width * 2)
         finger_y = int(index_finger.y * height * 2)
+
         if not self.is_dragging:
+            hovering_now = False
             for label, box in nodes.get_boxes().items():
                 x1, y1, x2, y2 = box.get_bounds()
                 if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
-                    self.dragged_node = drawBase(img, finger_x, finger_y, box.scale, box.color, -1, label)
-                    self.is_dragging = True
+                    hovering_now = True
+                    if self.hovered_node == label:
+                        if time.time() - self.hover_start_time >= self.drag_delay: # check if finger hovering for long enough
+                            self.dragged_node = drawBase(img, finger_x, finger_y, box.scale, box.color, -1, label)
+                            self.is_dragging = True
+                            self.hovered_node = None
+                            self.hover_start_time = None
+                    else:
+                        self.hovered_node = label
+                        self.hover_start_time = time.time()
                     break
-                else:
-                     # for continued dragging
-                    self.dragged_node.x = finger_x
-                    self.dragged_node.y = finger_y
-                    self.dragged_node.drawBase()
+            if not hovering_now: # reset finger if not hovering on node
+                self.hovered_node = None
+                self.hover_start_time = None
+        else:
+            # for continued dragging
+            self.dragged_node.x = finger_x
+            self.dragged_node.y = finger_y
+            self.dragged_node.drawBase()
         # draw dragged nodes
         for node in self.placed_nodes:
             node.drawBase()
@@ -190,22 +210,9 @@ class mainLoop():
         self.mp_hands = mp.solutions.hands
         # enabling api use
         self.model_path = model_path
-        
-
-    # this function is for the moving of nodes when they are selected by user
-    def MoveNodes():
-        return
-    
-    # this function is to confirm the placement of nodes on screen
-    def PlaceNodes():
-        return
     
     # this function is to draw the lines that connect the nodes
     def ConnectNodes():
-        return
-    
-    # this function is for drawing the main background ui and other things
-    def MainGUI():
         return
     
     # this function is called to run the app and detects hand and draws landmarks
@@ -224,6 +231,19 @@ class mainLoop():
                     print("Error: Empty frame") # debug
                     break
                 
+                width = int(flipped_image.shape[1] * 2)
+                height = int(flipped_image.shape[0] * 2)
+
+                # gui
+                flipped_image = cv2.flip(image, 1)
+                resized_image = cv2.resize(flipped_image, (width, height))
+                DrawBackground(resized_image)
+                DrawOutput(resized_image)
+                Connector(resized_image)
+                nodes = GUINodes(resized_image)
+                vk = VirtualKeyboard(resized_image)
+                vk.drawKeyboard()
+
                 image.flags.writeable = False
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 results = hands.process(image)
@@ -242,17 +262,7 @@ class mainLoop():
                     # call gesture recogniser class
                     gr = GestureRecognizer(image, model_path, nodes, index_finger, width, height)
                     gr.draggedNodes()
-                # gui
-                flipped_image = cv2.flip(image, 1)
-                width = int(flipped_image.shape[1] * 2)
-                height = int(flipped_image.shape[0] * 2)
-                resized_image = cv2.resize(flipped_image, (width, height))
-                DrawBackground(resized_image)
-                DrawOutput(resized_image)
-                Connector(resized_image)
-                nodes = GUINodes(resized_image)
-                vk = VirtualKeyboard(resized_image)
-                vk.drawKeyboard()
+                
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
