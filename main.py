@@ -124,8 +124,20 @@ class Connector():
         else:
             self.connect_Mode = False
     # this function handles the drawing of the active connections
-    def drawConnection(self):
-        cv2.circle(self.img, (self.finger_x, self.finger_y), 5, (255, 255, 255), -1)
+    def drawConnections(self, placed_nodes, connections):
+        for start_label, end_labels in connections.items():
+            if start_label not in placed_nodes:
+                continue
+            start_node = placed_nodes[start_label]
+            x1 = int(start_node.x)
+            y1 = int(start_node.y)
+            for end_label in end_labels:
+                if end_label not in placed_nodes:
+                    continue
+                end_node = placed_nodes[end_label]
+                x2 = int(end_node.x)
+                y2 = int(end_node.y)
+                cv2.line(self.img, (x1, y1), (x2, y2), (0,0,0), 2)
 
 # this class draws the background for the main GUI
 class DrawBackground():
@@ -172,7 +184,7 @@ class GestureRecognizer():
         self.connection_start_time = None
         self.first_node = None
         self.second_node = None
-        self.connections = []
+        self.connections = {}
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
@@ -220,6 +232,7 @@ class GestureRecognizer():
         # draw dragged nodes
         for node in self.placed_nodes:
             node.drawBase()
+
     # this function will handle the connections made between places nodes and store the connections for use
     def process_connections(self, img, index_finger, width, height, placed_nodes):
         # for index finger collision
@@ -239,7 +252,12 @@ class GestureRecognizer():
                             self.first_node = (label, node)
                         elif not self.second_node and label != self.first_node[0]:
                             self.second_node = (label, node)
-                            self.connections.append((self.first_node[0], self.second_node[0]))
+                            start_label = self.first_node[0]
+                            end_label = self.second_node[0]
+                            if start_label not in self.connections:
+                                self.connections[start_label] = []
+                            if end_label not in self.connections[start_label]:
+                                self.connections[start_label].append(end_label)
                             self.first_node = None
                             self.second_node = None
                             connect_mode = False
@@ -252,7 +270,8 @@ class GestureRecognizer():
                 y = int(self.second_node[1].y)
                 cv2.line(img, (x, y), (finger_x, finger_y), (0,0,0), 2)
                 cv2.circle(img, (finger_x, finger_y), 5, (255,0,0), -1)
-                ### continue here ###
+        self.con.drawConnections()
+
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
