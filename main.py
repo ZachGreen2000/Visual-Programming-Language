@@ -286,6 +286,8 @@ class mainLoop():
         # enabling api use
         self.model_path = model_path
     
+    # this function controls if run is activated to then activate the output of the code
+
     # this function is called to run the app and detects hand and draws landmarks
     # using the landmarks and gesture recognition it calls functions for gesture based coding implementation
     def run(self):
