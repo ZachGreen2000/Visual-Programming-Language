@@ -168,6 +168,11 @@ class GestureRecognizer():
         self.hover_start_time = None
         self.drag_delay = 0.5
         self.con = Connector()
+        # process connections variables
+        self.connection_start_time = None
+        self.first_node = None
+        self.second_node = None
+        self.connections = []
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
@@ -217,10 +222,36 @@ class GestureRecognizer():
             node.drawBase()
     # this function will handle the connections made between places nodes and store the connections for use
     def process_connections(self, img, index_finger, width, height, placed_nodes):
-        connect_mode = self.con.detectConnection()
+        # for index finger collision
+        finger_x = int(index_finger.x * width * 2)
+        finger_y = int(index_finger.y * height * 2)
+
+        connect_mode = self.con.detectConnection() # get connecting mode result
         if connect_mode == True:
             for label, node in placed_nodes.items():
                 x1, y1, x2, y2 = node.get_bounds()
+                if x1 <= finger_x <= x2 and y1 <= finger_y <= y2: # collision
+                    if self.connection_start_time is None: # logic for time delay
+                        self.connection_start_time = time.time()
+                        return
+                    elif time.time() - self.connection_start_time > 1.0:
+                        if not self.first_node: # set first and second node depending on connection
+                            self.first_node = (label, node)
+                        elif not self.second_node and label != self.first_node[0]:
+                            self.second_node = (label, node)
+                            self.connections.append((self.first_node[0], self.second_node[0]))
+                            self.first_node = None
+                            self.second_node = None
+                            connect_mode = False
+                        self.connection_start_time = None
+                        return
+            self.connection_start_time = None
+            # for line drawing
+            if self.first_node:
+                x = int(self.first_node[1].x)
+                y = int(self.second_node[1].y)
+                cv2.line(img, (x, y), (finger_x, finger_y), (0,0,0), 2)
+                cv2.circle(img, (finger_x, finger_y), 5, (255,0,0), -1)
                 ### continue here ###
 
 # this class houses the logic for the main running loop of the hand tracking
