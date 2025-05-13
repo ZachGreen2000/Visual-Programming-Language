@@ -119,10 +119,10 @@ class Connector():
         x1 = 120, y1 = 130, x2 = 150, y2 = 130 # same as tool location
         if x1 <= self.finger_x <= x2 and y1 <= self.finger_y <= y2: # detect collision
             self.connect_Mode = True
-            self.drawConnection()
             return self.connect_Mode
         else:
             self.connect_Mode = False
+
     # this function handles the drawing of the active connections
     def drawConnections(self, placed_nodes, connections):
         for start_label, end_labels in connections.items():
