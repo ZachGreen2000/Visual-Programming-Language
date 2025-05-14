@@ -1,6 +1,8 @@
 import mediapipe as mp
 import cv2
-import main
+import os
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 class codingFunctionality(): 
     def __inti__(self):
@@ -41,3 +43,19 @@ class codingFunctionality():
     # this function handles the functionality of the less than node
     def LessThan(x, y):
         return
+# test code    
+model_path = os.path.abspath("gesture_recognizer.task")
+print("Resolved model path:", model_path)
+
+BaseOptions = mp.tasks.BaseOptions
+GestureRecognizer = vision.GestureRecognizer
+GestureRecognizerOptions = vision.GestureRecognizerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+options = GestureRecognizerOptions(
+    base_options=BaseOptions(model_asset_path=model_path),
+    running_mode=VisionRunningMode.IMAGE  # Use IMAGE mode for a simple test
+)
+
+recognizer = GestureRecognizer.create_from_options(options)
+print("Model loaded successfully.")

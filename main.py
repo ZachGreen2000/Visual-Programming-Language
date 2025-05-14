@@ -2,8 +2,8 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import cv2
-import codeCalls
 import time
+import os
 
 # this classdraws the shape of each block and adds the text
 class drawBase():
@@ -100,23 +100,26 @@ class GUINodes():
 
 # this class handles the connector tool drawing
 class Connector():
-    def __init__(self, img, index_finger, width, height):
-        self.img = img
-        self.index_finger = index_finger
-        self.width = width
-        self.height = height
+    def __init__(self):
+        self.img = None
         self.connect_Mode = False
+
+    # this function draws the connector tool on background
+    def drawTool(self, img):
+        self.img = img
         cv2.circle(img, (120, 130), 5, (255,255,245), -1)
         cv2.line(img, (120, 130), (150, 130), (255,255,245), 2)
         cv2.circle(img, (150, 130), 5, (255,255,245), -1)
 
-        # for index finger collision
-        self.finger_x = int(self.index_finger.x * self.width * 2)
-        self.finger_y = int(self.index_finger.y * self.height * 2)
-    
     # this function detects connector tool collision
-    def detectConnection(self):
-        x1 = 120, y1 = 130, x2 = 150, y2 = 130 # same as tool location
+    def detectConnection(self, index_finger, width, height):
+        x1 = 120 
+        y1 = 130
+        x2 = 150
+        y2 = 130 # same as tool location
+        # for index finger collision
+        self.finger_x = int(index_finger.x * width * 2)
+        self.finger_y = int(index_finger.y * height * 2)
         if x1 <= self.finger_x <= x2 and y1 <= self.finger_y <= y2: # detect collision
             self.connect_Mode = True
             return self.connect_Mode
@@ -163,12 +166,12 @@ class DrawCursor():
 
 # this class handles the gesture recognition
 class GestureRecognizer():
-    def __init__(self, img, model_path, nodes, index_finger, width, height):
+    def __init__(self, model_path):
         self.BaseOptions = mp.tasks.BaseOptions
         self.GestureRecognizer = vision.GestureRecognizer
         self.GestureRecognizerOptions = vision.GestureRecognizerOptions
         self.VisionRunningMode = mp.tasks.vision.RunningMode
-        options = self.GestureRecognizerOptions(base_options = self.BaseOptions(model_path),
+        options = self.GestureRecognizerOptions(base_options = self.BaseOptions(model_asset_path=model_path),
                                                running_mode=self.VisionRunningMode.LIVE_STREAM,
                                                  result_callback=self.IdentifyGesture)
         self.recognizer = self.GestureRecognizer.create_from_options(options)
@@ -192,8 +195,9 @@ class GestureRecognizer():
             confidence = result.gestures[0][0].score
             gesture = result.gestures[0][0].category_name # stores current gesture
             if confidence > 0.5 and gesture:
+                print(gesture)
                 # if gesture is closed fist then node is places and stored
-                if gesture == "Closed_Fist":
+                if gesture == "Closed_Fist" and self.dragged_node is not None:
                     self.placed_nodes[len(self.placed_nodes)] = self.dragged_node
                     self.dragged_node = None
                     self.is_dragging = False
@@ -230,7 +234,7 @@ class GestureRecognizer():
             self.dragged_node.y = finger_y
             self.dragged_node.drawBase()
         # draw dragged nodes
-        for node in self.placed_nodes:
+        for node in self.placed_nodes.values():
             node.drawBase()
 
     # this function will handle the connections made between places nodes and store the connections for use
@@ -271,6 +275,13 @@ class GestureRecognizer():
                 cv2.line(img, (x, y), (finger_x, finger_y), (0,0,0), 2)
                 cv2.circle(img, (finger_x, finger_y), 5, (255,0,0), -1)
         self.con.drawConnections()
+        self.executeOutput(self.placed_nodes, self.connections)
+
+    # this function controls if run is activated to then activate the output of the code
+    def executeOutput(self, placed_nodes, connections):
+        if any(node.text == "Run" for node in placed_nodes):
+            if connections[0] == print:
+                print("connections output node")
 
 
 # this class houses the logic for the main running loop of the hand tracking
@@ -285,8 +296,9 @@ class mainLoop():
         self.mp_hands = mp.solutions.hands
         # enabling api use
         self.model_path = model_path
-    
-    # this function controls if run is activated to then activate the output of the code
+        self.gr = GestureRecognizer(self.model_path)
+        self.con = Connector()
+        self.index_finger = type('Point', (), {'x': 0, 'y': 0})() # initialise index_finger with same type for global use
 
     # this function is called to run the app and detects hand and draws landmarks
     # using the landmarks and gesture recognition it calls functions for gesture based coding implementation
@@ -304,22 +316,17 @@ class mainLoop():
                     print("Error: Empty frame") # debug
                     break
                 
-                width = int(flipped_image.shape[1] * 2)
-                height = int(flipped_image.shape[0] * 2)
-
-                # gui
-                flipped_image = cv2.flip(image, 1)
-                resized_image = cv2.resize(flipped_image, (width, height))
-                DrawBackground(resized_image)
-                DrawOutput(resized_image)
-                nodes = GUINodes(resized_image)
-                vk = VirtualKeyboard(resized_image)
-                vk.drawKeyboard()
+                width = int(image.shape[1] * 2)
+                height = int(image.shape[0] * 2)
 
                 image.flags.writeable = False
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 results = hands.process(image)
 
+                #get frame and call function
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
+                self.gr.recognizer.recognize_async(mp_image, timestamp_ms=cv2.getTickCount())
+                
                 image.flags.writeable = True
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 if results.multi_hand_landmarks: # this detects hands and draws landmarks on hands
@@ -330,20 +337,30 @@ class mainLoop():
                             self.mp_hands.HAND_CONNECTIONS,
                             self.mp_drawing_styles.get_default_hand_landmarks_style(),
                             self.mp_drawing_styles.get_default_hand_connections_style())
-                    index_finger = hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
-                    # call gesture recogniser class
-                    gr = GestureRecognizer(image, model_path, nodes, index_finger, width, height)
-                    gr.draggedNodes()
-                    # draws connection and detection of tool use
-                    con = Connector(resized_image, index_finger, width, height)
-                    con.detectConnection()
-                
+                    self.index_finger = hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
+
+                #flip and resize screen    
+                flipped_image = cv2.flip(image, 1)
+                resized_image = cv2.resize(flipped_image, (width, height))
+                # gui
+                DrawBackground(resized_image)
+                DrawOutput(resized_image)
+                nodes = GUINodes(resized_image)
+                vk = VirtualKeyboard(resized_image)
+                vk.drawKeyboard()
+                # draws connection and detection of tool use
+                self.con.drawTool(resized_image)
+
+                # call function
+                self.gr.draggedNodes(resized_image, nodes, self.index_finger, width, height)
+                self.con.detectConnection(self.index_finger, width, height)
+
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
                 if cv2.waitKey(5) & 0xFF == ord('q'):
                     break
         self.cap.release()
         cv2.destroyAllWindows() 
-model_path = "gesture_recognizer.task" # sets path to gesture recogniser api
+model_path = os.path.abspath("gesture_recognizer.task") # sets path to gesture recogniser api
 app = mainLoop(model_path, 0)
 app.run()
