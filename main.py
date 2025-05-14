@@ -195,7 +195,7 @@ class GestureRecognizer():
             confidence = result.gestures[0][0].score
             gesture = result.gestures[0][0].category_name # stores current gesture
             if confidence > 0.5 and gesture:
-                print(gesture)
+                #print(gesture) #debug
                 # if gesture is closed fist then node is places and stored
                 if gesture == "Closed_Fist" and self.dragged_node is not None:
                     self.placed_nodes[len(self.placed_nodes)] = self.dragged_node
@@ -206,17 +206,20 @@ class GestureRecognizer():
     
     def draggedNodes(self, img, nodes, index_finger, width, height):
         # for index finger collision
-        finger_x = int(index_finger.x * width * 2)
-        finger_y = int(index_finger.y * height * 2)
+        finger_x = int((1 - index_finger.x) * width)
+        finger_y = int(index_finger.y * height)
 
         if not self.is_dragging:
             hovering_now = False
             for label, box in nodes.get_boxes().items():
                 x1, y1, x2, y2 = box.get_bounds()
                 if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
+                    #print("finger colliding with: " + label) #debug
                     hovering_now = True
                     if self.hovered_node == label:
+                        #print("hovered node is equal to label") #debug
                         if time.time() - self.hover_start_time >= self.drag_delay: # check if finger hovering for long enough
+                            #print("Drawing node at: " + self.hovered_node, finger_x, finger_y) #debug
                             self.dragged_node = drawBase(img, finger_x, finger_y, box.scale, box.color, -1, label)
                             self.is_dragging = True
                             self.hovered_node = None
@@ -233,6 +236,8 @@ class GestureRecognizer():
             self.dragged_node.x = finger_x
             self.dragged_node.y = finger_y
             self.dragged_node.drawBase()
+            #print("node is now dragging: ", self.dragged_node.x, self.dragged_node.y) #debug
+            #print("node scale and color is: ", self.dragged_node.scale, self.dragged_node.color) #debug
         # draw dragged nodes
         for node in self.placed_nodes.values():
             node.drawBase()
