@@ -7,8 +7,8 @@ import os
 
 # this classdraws the shape of each block and adds the text
 class drawBase():
-    def __init__(self, img, x, y, scale, color, thickness, text):
-        self.img = img
+    def __init__(self, x, y, scale, color, thickness, text):
+        #self.img = img
         self.x = x
         self.y = y
         self.scale = scale
@@ -16,12 +16,12 @@ class drawBase():
         self.thickness = thickness
         self.text = text
 
-    def drawBase(self):
-        cv2.rectangle(self.img, (self.x - int(20 * self.scale), self.y + int(10 * self.scale)), (self.x + int(25 * self.scale), self.y + int(40 * self.scale)), self.color, self.thickness)
+    def drawBase(self, img):
+        cv2.rectangle(img, (self.x - int(20 * self.scale), self.y + int(10 * self.scale)), (self.x + int(25 * self.scale), self.y + int(40 * self.scale)), self.color, self.thickness)
         text_size = cv2.getTextSize(self.text, cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, 1)[0] # get text size
         text_x = self.x - int(text_size[0] / 2) + 2 # adjust text position to centre
         text_y = self.y + int(text_size[1] / 2) + 45 # same as above
-        cv2.putText(self.img, self.text, (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, (0,0,0))
+        cv2.putText(img, self.text, (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX, 0.2 * self.scale, (0,0,0))
 
     def get_bounds(self):
         x1 = int(self.x - 20 * self.scale)
@@ -56,8 +56,8 @@ class VirtualKeyboard():
         for row in self.keys:
             #loop through keys on row
             for key in row:
-                key_button = drawBase(img, key_x, key_y, scale, (220,220,210), -1, key)
-                key_button.drawBase()
+                key_button = drawBase(key_x, key_y, scale, (220,220,210), -1, key)
+                key_button.drawBase(img)
                 # increment positioning
                 key_x += 80 
             # increment row positioning
@@ -78,22 +78,22 @@ class GUINodes():
         scale = 2
         # dictionairy for each node, draws them on screen and stores them for referenceing 
         self.boxes = {
-            "Print": drawBase(img, 60, offsetY, scale, (0,0,255), -1, "Print"),
-            "If": drawBase(img, 60 + offsetX, offsetY, scale, (0,0,255), -1, "If"),
-            "Run": drawBase(img, 60 + 2 * offsetX, offsetY, scale, (255,0,0), -1, "Run"),
-            "Timer": drawBase(img, 60 + 3 * offsetX, offsetY, scale, (0,255,0), -1, "Timer"),
-            "For": drawBase(img, 60 + 4 * offsetX, offsetY, scale, (255,255,0), -1, "For"),
-            "Input": drawBase(img, 60 + 5 * offsetX, offsetY, scale, (255,255,245), -1, "Input"),
-            "Add": drawBase(img, 60 + 6 * offsetX, offsetY, scale, (120,120,110), -1, "Add"),
-            "Subtract": drawBase(img, 60 + 7 * offsetX, offsetY, scale, (220,220,210), -1, "Subtract"),
-            "Divide": drawBase(img, 60 + 8 * offsetX, offsetY, scale, (220,220,210), -1, "Divide"),
-            "Equals": drawBase(img, 60 + 9 * offsetX, offsetY, scale, (220,220,210), -1, "Equals"),
-            "LessThan": drawBase(img, 60 + 10 * offsetX, offsetY, scale, (220,220,210), -1, "Less Than"),
-            "MoreThan": drawBase(img, 60 + 11 * offsetX, offsetY, scale, (220,220,210), -1, "More Than")
+            "Print": drawBase(60, offsetY, scale, (0,0,255), -1, "Print"),
+            "If": drawBase(60 + offsetX, offsetY, scale, (0,0,255), -1, "If"),
+            "Run": drawBase(60 + 2 * offsetX, offsetY, scale, (255,0,0), -1, "Run"),
+            "Timer": drawBase(60 + 3 * offsetX, offsetY, scale, (0,255,0), -1, "Timer"),
+            "For": drawBase(60 + 4 * offsetX, offsetY, scale, (255,255,0), -1, "For"),
+            "Input": drawBase(60 + 5 * offsetX, offsetY, scale, (255,255,245), -1, "Input"),
+            "Add": drawBase(60 + 6 * offsetX, offsetY, scale, (120,120,110), -1, "Add"),
+            "Subtract": drawBase(60 + 7 * offsetX, offsetY, scale, (220,220,210), -1, "Subtract"),
+            "Divide": drawBase(60 + 8 * offsetX, offsetY, scale, (220,220,210), -1, "Divide"),
+            "Equals": drawBase(60 + 9 * offsetX, offsetY, scale, (220,220,210), -1, "Equals"),
+            "LessThan": drawBase(60 + 10 * offsetX, offsetY, scale, (220,220,210), -1, "Less Than"),
+            "MoreThan": drawBase(60 + 11 * offsetX, offsetY, scale, (220,220,210), -1, "More Than")
         }
         # handles the actual drawing of nodes
         for box in self.boxes.values():
-            box.drawBase()
+            box.drawBase(img)
     # for storage of disctionairy
     def get_boxes(self):
         return self.boxes
@@ -188,9 +188,11 @@ class GestureRecognizer():
         self.first_node = None
         self.second_node = None
         self.connections = {}
+        self.img = {}
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
+        img = self.img.get(timestamp_ms)
         if result.gestures:
             confidence = result.gestures[0][0].score
             gesture = result.gestures[0][0].category_name # stores current gesture
@@ -198,13 +200,19 @@ class GestureRecognizer():
                 #print(gesture) #debug
                 # if gesture is closed fist then node is places and stored
                 if gesture == "Closed_Fist" and self.dragged_node is not None:
-                    self.placed_nodes[len(self.placed_nodes)] = self.dragged_node
+                    self.placed_nodes[self.dragged_node['text']] = drawBase(self.dragged_node['x'],
+                                                                            self.dragged_node['y'],
+                                                                            self.dragged_node['scale'],
+                                                                            self.dragged_node['color'],
+                                                                            self.dragged_node.get('thickness', -1),
+                                                                            self.dragged_node['text'])
                     self.dragged_node = None
                     self.is_dragging = False
                     self.hovered_node = None
                     self.hover_start_time = None
     
-    def draggedNodes(self, img, nodes, index_finger, width, height):
+    def draggedNodes(self, img, nodes, index_finger, width, height, timestamp_ms):
+        self.img[timestamp_ms] = img
         # for index finger collision
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
@@ -220,7 +228,7 @@ class GestureRecognizer():
                         #print("hovered node is equal to label") #debug
                         if time.time() - self.hover_start_time >= self.drag_delay: # check if finger hovering for long enough
                             #print("Drawing node at: " + self.hovered_node, finger_x, finger_y) #debug
-                            self.dragged_node = drawBase(img, finger_x, finger_y, box.scale, box.color, -1, label)
+                            self.dragged_node = {'x': finger_x, 'y': finger_y, 'scale': box.scale, 'color': box.color, 'thickness': -1, 'text': label}
                             self.is_dragging = True
                             self.hovered_node = None
                             self.hover_start_time = None
@@ -233,14 +241,16 @@ class GestureRecognizer():
                 self.hover_start_time = None
         else:
             # for continued dragging
-            self.dragged_node.x = finger_x
-            self.dragged_node.y = finger_y
-            self.dragged_node.drawBase()
+            self.dragged_node['x'] = finger_x
+            self.dragged_node['y'] = finger_y
+            DN = drawBase(**self.dragged_node)
+            DN.drawBase(img)
+            cv2.circle(img, (finger_x, finger_y), 10, (255,255,255), -1)
             #print("node is now dragging: ", self.dragged_node.x, self.dragged_node.y) #debug
             #print("node scale and color is: ", self.dragged_node.scale, self.dragged_node.color) #debug
         # draw dragged nodes
         for node in self.placed_nodes.values():
-            node.drawBase()
+            node.drawBase(img)
 
     # this function will handle the connections made between places nodes and store the connections for use
     def process_connections(self, img, index_finger, width, height, placed_nodes):
@@ -355,9 +365,9 @@ class mainLoop():
                 vk.drawKeyboard()
                 # draws connection and detection of tool use
                 self.con.drawTool(resized_image)
-
+                
                 # call function
-                self.gr.draggedNodes(resized_image, nodes, self.index_finger, width, height)
+                self.gr.draggedNodes(resized_image, nodes, self.index_finger, width, height, timestamp_ms=cv2.getTickCount())
                 self.con.detectConnection(self.index_finger, width, height)
 
                 # below code displays image and gives ability to end stream on q press
