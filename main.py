@@ -103,6 +103,7 @@ class Connector():
     def __init__(self):
         self.img = None
         self.connect_Mode = False
+        print("connect mode is", self.connect_Mode)
 
     # this function draws the connector tool on background
     def drawTool(self, img):
@@ -118,13 +119,25 @@ class Connector():
         x2 = 150
         y2 = 130 # same as tool location
         # for index finger collision
-        self.finger_x = int(index_finger.x * width * 2)
-        self.finger_y = int(index_finger.y * height * 2)
-        if x1 <= self.finger_x <= x2 and y1 <= self.finger_y <= y2: # detect collision
-            self.connect_Mode = True
-            return self.connect_Mode
-        else:
-            self.connect_Mode = False
+        self.finger_x = int((1 - index_finger.x) * width)
+        self.finger_y = int(index_finger.y * height)
+        if not self.connect_Mode:
+            if x1 <= self.finger_x <= x2 and y1 <= self.finger_y <= y2: # detect collision
+                self.connect_Mode = True
+                #print("connector tool collision at") #debug
+        # runs when connect mode on to draw tool at finger tip
+        if self.connect_Mode:
+            cv2.circle(self.img, (self.finger_x, self.finger_y), 10, (255,255,255), -1)
+            print("connect mode is", self.connect_Mode)
+    
+    # this function calls on open palm to stop using connect tool
+    def stopConnectTool(self):
+        self.connect_Mode = False
+        print("self connect mode is", self.connect_Mode)
+
+    # this gets connect mode
+    def getConnectMode(self):
+        return self.connect_Mode
 
     # this function handles the drawing of the active connections
     def drawConnections(self, placed_nodes, connections):
@@ -182,7 +195,7 @@ class GestureRecognizer():
         self.hovered_node = None
         self.hover_start_time = None
         self.drag_delay = 0.5
-        self.con = Connector()
+        self.con = None
         # process connections variables
         self.connection_start_time = None
         self.first_node = None
@@ -210,7 +223,13 @@ class GestureRecognizer():
                     self.is_dragging = False
                     self.hovered_node = None
                     self.hover_start_time = None
+                if gesture == "Open_Palm":
+                    self.con.stopConnectTool() # stop connect tool on open palm gesture
+                    #print("connect mode stopped") #debug
     
+    def setConnectorInstance(self, connector):
+        self.con = connector
+
     def draggedNodes(self, img, nodes, index_finger, width, height, timestamp_ms):
         self.img[timestamp_ms] = img
         # for index finger collision
@@ -255,10 +274,10 @@ class GestureRecognizer():
     # this function will handle the connections made between places nodes and store the connections for use
     def process_connections(self, img, index_finger, width, height, placed_nodes):
         # for index finger collision
-        finger_x = int(index_finger.x * width * 2)
-        finger_y = int(index_finger.y * height * 2)
+        finger_x = int((1 - index_finger.x) * width)
+        finger_y = int(index_finger.y * height)
 
-        connect_mode = self.con.detectConnection() # get connecting mode result
+        connect_mode = self.con.getConnectMode() # get connecting mode result
         if connect_mode == True:
             for label, node in placed_nodes.items():
                 x1, y1, x2, y2 = node.get_bounds()
@@ -338,6 +357,7 @@ class mainLoop():
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 results = hands.process(image)
 
+                self.gr.setConnectorInstance(self.con) # inject correct connector instance into class
                 #get frame and call function
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
                 self.gr.recognizer.recognize_async(mp_image, timestamp_ms=cv2.getTickCount())
