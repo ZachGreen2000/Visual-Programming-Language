@@ -32,12 +32,12 @@ class drawBase():
 
 #this class will draw the virual keyboard used for input for the code system
 class VirtualKeyboard():
-    def __init__(self, img):
+    def __init__(self):
         # variables for positioning 
         self.offsetX = 100
         self.offsetY = 700
         self.scale = 1.5
-        self.img = img
+        self.img = None
         # storage for keys
         self.keys = [
             ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
@@ -45,12 +45,14 @@ class VirtualKeyboard():
             ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
             ["Z", "X", "C", "V", "B", "N", "M", "SPACE"]
         ]
+        self.input_text = ""
+        self.keyLocations = {}
     # handles drawing of the keyboard
-    def drawKeyboard(self):
+    def drawKeyboard(self, img):
         key_x = self.offsetX
         key_y = self.offsetY
         scale = self.scale
-        img = self.img
+        self.img = img
 
         #loop through rows of keys
         for row in self.keys:
@@ -58,6 +60,8 @@ class VirtualKeyboard():
             for key in row:
                 key_button = drawBase(key_x, key_y, scale, (220,220,210), -1, key)
                 key_button.drawBase(img)
+                x1, y1, x2, y2 = key_button.get_bounds()
+                self.keyLocations[key] = (x1, y1, x2, y2)
                 # increment positioning
                 key_x += 80 
             # increment row positioning
@@ -66,6 +70,22 @@ class VirtualKeyboard():
     # for key storage
     def get_keys(self):
         return self.keys
+    
+    # this function is for keyboard collision but only when certain nodes are placed
+    def proccessKeyboard(self, activeNode, index_finger, width, height):
+        if activeNode != "Input":
+            return
+        
+        # for index finger collision
+        finger_x = int((1 - index_finger.x) * width)
+        finger_y = int(index_finger.y * height)
+
+        # to loop through keys
+        for key, (x1, y1, x2, y2) in self.keyLocations.items():
+            if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
+                self.input_text += " " if key == "SPACE" else key
+                print(self.input_text)
+                return
 
 # this class is for drawing the gui for the program using a data store for each block
 class GUINodes():
@@ -103,7 +123,7 @@ class Connector():
     def __init__(self):
         self.img = None
         self.connect_Mode = False
-        print("connect mode is", self.connect_Mode)
+        #print("connect mode is", self.connect_Mode) # debug
 
     # this function draws the connector tool on background
     def drawTool(self, img):
@@ -128,32 +148,16 @@ class Connector():
         # runs when connect mode on to draw tool at finger tip
         if self.connect_Mode:
             cv2.circle(self.img, (self.finger_x, self.finger_y), 10, (255,255,255), -1)
-            print("connect mode is", self.connect_Mode)
+            #print("connect mode is", self.connect_Mode) # debug
     
     # this function calls on open palm to stop using connect tool
     def stopConnectTool(self):
         self.connect_Mode = False
-        print("self connect mode is", self.connect_Mode)
+        #print("self connect mode is", self.connect_Mode) # debug
 
     # this gets connect mode
     def getConnectMode(self):
         return self.connect_Mode
-
-    # this function handles the drawing of the active connections
-    def drawConnections(self, placed_nodes, connections):
-        for start_label, end_labels in connections.items():
-            if start_label not in placed_nodes:
-                continue
-            start_node = placed_nodes[start_label]
-            x1 = int(start_node.x)
-            y1 = int(start_node.y)
-            for end_label in end_labels:
-                if end_label not in placed_nodes:
-                    continue
-                end_node = placed_nodes[end_label]
-                x2 = int(end_node.x)
-                y2 = int(end_node.y)
-                cv2.line(self.img, (x1, y1), (x2, y2), (0,0,0), 2)
 
 # this class draws the background for the main GUI
 class DrawBackground():
@@ -198,10 +202,10 @@ class GestureRecognizer():
         self.con = None
         # process connections variables
         self.connection_start_time = None
-        self.first_node = None
-        self.second_node = None
-        self.connections = {}
+        self.connections = []
         self.img = {}
+        self.activeNode = ""
+        self.VK = None
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
@@ -219,6 +223,7 @@ class GestureRecognizer():
                                                                             self.dragged_node['color'],
                                                                             self.dragged_node.get('thickness', -1),
                                                                             self.dragged_node['text'])
+                    self.activeNode = self.dragged_node['text']
                     self.dragged_node = None
                     self.is_dragging = False
                     self.hovered_node = None
@@ -227,8 +232,9 @@ class GestureRecognizer():
                     self.con.stopConnectTool() # stop connect tool on open palm gesture
                     #print("connect mode stopped") #debug
     
-    def setConnectorInstance(self, connector):
+    def setScriptInstance(self, connector, VK):
         self.con = connector
+        self.VK = VK
 
     def draggedNodes(self, img, nodes, index_finger, width, height, timestamp_ms):
         self.img[timestamp_ms] = img
@@ -272,51 +278,57 @@ class GestureRecognizer():
             node.drawBase(img)
 
     # this function will handle the connections made between places nodes and store the connections for use
-    def process_connections(self, img, index_finger, width, height, placed_nodes):
+    def process_connections(self, img, index_finger, width, height):
         # for index finger collision
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
 
         connect_mode = self.con.getConnectMode() # get connecting mode result
-        if connect_mode == True:
-            for label, node in placed_nodes.items():
+        if connect_mode:
+            for label, node in self.placed_nodes.items():
                 x1, y1, x2, y2 = node.get_bounds()
                 if x1 <= finger_x <= x2 and y1 <= finger_y <= y2: # collision
-                    if self.connection_start_time is None: # logic for time delay
-                        self.connection_start_time = time.time()
-                        return
-                    elif time.time() - self.connection_start_time > 1.0:
-                        if not self.first_node: # set first and second node depending on connection
-                            self.first_node = (label, node)
-                        elif not self.second_node and label != self.first_node[0]:
-                            self.second_node = (label, node)
-                            start_label = self.first_node[0]
-                            end_label = self.second_node[0]
-                            if start_label not in self.connections:
-                                self.connections[start_label] = []
-                            if end_label not in self.connections[start_label]:
-                                self.connections[start_label].append(end_label)
-                            self.first_node = None
-                            self.second_node = None
-                            connect_mode = False
+                    if self.connection_start_time is not None and time.time() - self.connection_start_time >= 1.0:
+                        print("finger colliding with: ", label)
+                        node_text = label
+                        if node_text not in self.connections:
+                            self.connections.append(node_text)
                         self.connection_start_time = None
-                        return
-            self.connection_start_time = None
-            # for line drawing
-            if self.first_node:
-                x = int(self.first_node[1].x)
-                y = int(self.second_node[1].y)
-                cv2.line(img, (x, y), (finger_x, finger_y), (0,0,0), 2)
-                cv2.circle(img, (finger_x, finger_y), 5, (255,0,0), -1)
-        self.con.drawConnections()
-        self.executeOutput(self.placed_nodes, self.connections)
+                        break
+                    elif self.connection_start_time is None: # logic for time delay
+                        self.connection_start_time = time.time()
+                        break
+
+            # for drawing from last node to finger tip
+            if self.connections:
+                last_label = self.connections[-1]
+                last_node = self.placed_nodes[last_label]
+                x1, y1 = int(last_node.x), int(last_node.y)
+                cv2.line(img, (x1,y1), (finger_x, finger_y), (255,255,255), 2)
+
+        # for line drawing between placed nodes
+        if len(self.connections) > 1:
+            for i  in range(len(self.connections) - 1):
+                label_a = self.connections[i]
+                label_b = self.connections[i + 1]
+
+                if label_a in self.placed_nodes and label_b in self.placed_nodes:
+                    node_a = self.placed_nodes[label_a]
+                    node_b = self.placed_nodes[label_b]
+                    x1,y1 = int(node_a.x), int(node_a.y)
+                    x2,y2 = int(node_b.x), int(node_b.y)
+                    cv2.line(img, (x1, y1), (x2, y2), (0,0,0), 2)
+        self.VK.proccessKeyboard(self.activeNode, index_finger, width, height)
+        self.executeOutput()
 
     # this function controls if run is activated to then activate the output of the code
-    def executeOutput(self, placed_nodes, connections):
-        if any(node.text == "Run" for node in placed_nodes):
-            if connections[0] == print:
-                print("connections output node")
-
+    def executeOutput(self):
+        if "Run" in self.connections:
+            if self.connections[-1] == "Run":
+                print("Running output")
+                return
+            else:
+                print("Error")
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
@@ -333,6 +345,7 @@ class mainLoop():
         self.gr = GestureRecognizer(self.model_path)
         self.con = Connector()
         self.index_finger = type('Point', (), {'x': 0, 'y': 0})() # initialise index_finger with same type for global use
+        self.vk = VirtualKeyboard()
 
     # this function is called to run the app and detects hand and draws landmarks
     # using the landmarks and gesture recognition it calls functions for gesture based coding implementation
@@ -357,7 +370,7 @@ class mainLoop():
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 results = hands.process(image)
 
-                self.gr.setConnectorInstance(self.con) # inject correct connector instance into class
+                self.gr.setScriptInstance(self.con, self.vk) # inject correct connector instance into class
                 #get frame and call function
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
                 self.gr.recognizer.recognize_async(mp_image, timestamp_ms=cv2.getTickCount())
@@ -381,14 +394,14 @@ class mainLoop():
                 DrawBackground(resized_image)
                 DrawOutput(resized_image)
                 nodes = GUINodes(resized_image)
-                vk = VirtualKeyboard(resized_image)
-                vk.drawKeyboard()
+                self.vk.drawKeyboard(resized_image)
                 # draws connection and detection of tool use
                 self.con.drawTool(resized_image)
                 
                 # call function
                 self.gr.draggedNodes(resized_image, nodes, self.index_finger, width, height, timestamp_ms=cv2.getTickCount())
                 self.con.detectConnection(self.index_finger, width, height)
+                self.gr.process_connections(resized_image, self.index_finger, width, height)
 
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
