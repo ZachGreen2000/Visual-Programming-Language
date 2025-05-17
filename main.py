@@ -86,6 +86,8 @@ class VirtualKeyboard():
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
 
+        cv2.circle(self.img, (finger_x, finger_y), 10, (10,200,235), -1)
+
         # to loop through keys
         for key, (x1, y1, x2, y2) in self.keyLocations.items():
             if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
