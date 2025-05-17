@@ -43,10 +43,12 @@ class VirtualKeyboard():
             ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
             ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
             ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-            ["Z", "X", "C", "V", "B", "N", "M", "SPACE"]
+            ["Z", "X", "C", "V", "B", "N", "M", "SPACE", "ENTER"]
         ]
         self.input_text = ""
         self.keyLocations = {}
+        self.last_press_time = 0
+        self.inputStore = []
     # handles drawing of the keyboard
     def drawKeyboard(self, img):
         key_x = self.offsetX
@@ -76,6 +78,10 @@ class VirtualKeyboard():
         if activeNode != "Input":
             return
         
+        current_time = time.time()
+        if current_time - self.last_press_time < 0.5:
+            return # return if too soon since last key press
+        
         # for index finger collision
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
@@ -83,7 +89,13 @@ class VirtualKeyboard():
         # to loop through keys
         for key, (x1, y1, x2, y2) in self.keyLocations.items():
             if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
-                self.input_text += " " if key == "SPACE" else key
+                if key == "ENTER": # check for enter press to finish the keyboard string
+                    if self.input_text not in self.inputStore:
+                        self.inputStore.append(self.input_text)
+                    self.input_text = ""
+                else:
+                    self.input_text += " " if key == "SPACE" else key # get key collision
+                self.last_press_time = current_time
                 print(self.input_text)
                 return
 
