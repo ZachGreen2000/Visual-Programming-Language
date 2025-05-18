@@ -262,7 +262,21 @@ class GestureRecognizer():
                 #print(gesture) #debug
                 # if gesture is closed fist then node is places and stored
                 if gesture == "Closed_Fist" and self.dragged_node is not None:
-                    if self.dragged_node['text'] == "Input" and "Input" in self.placed_nodes: # takes into account a second input node
+                    if self.dragged_node['text'] == "Input" and "Input3" in self.placed_nodes:
+                        self.placed_nodes['Input4'] = drawBase(self.dragged_node['x'],
+                                                                            self.dragged_node['y'],
+                                                                            self.dragged_node['scale'],
+                                                                            self.dragged_node['color'],
+                                                                            self.dragged_node.get('thickness', -1),
+                                                                            self.dragged_node['text'])
+                    elif self.dragged_node['text'] == "Input" and "Input2" in self.placed_nodes:
+                        self.placed_nodes['Input3'] = drawBase(self.dragged_node['x'],
+                                                                            self.dragged_node['y'],
+                                                                            self.dragged_node['scale'],
+                                                                            self.dragged_node['color'],
+                                                                            self.dragged_node.get('thickness', -1),
+                                                                            self.dragged_node['text'])
+                    elif self.dragged_node['text'] == "Input" and "Input" in self.placed_nodes: # takes into account a second input node
                         self.placed_nodes['Input2'] = drawBase(self.dragged_node['x'],
                                                                             self.dragged_node['y'],
                                                                             self.dragged_node['scale'],
@@ -409,6 +423,7 @@ class GestureRecognizer():
                     elif node == "Print" and self.result is not None:
                         print(self.result)
                         self.functionRunning = True
+                        
 
                     # handles addition where if there are two input nodes it tries to add them given they can be passed to floats
                     elif node == "Add":
@@ -446,7 +461,7 @@ class GestureRecognizer():
                     elif node == "Equals":
                         if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
-                            self.result = str(a) == str(b)
+                            self.result = str(a == b)
                             print(self.result)
 
                     # handles less than node
@@ -475,13 +490,13 @@ class GestureRecognizer():
                         if condition:
                             print("continuing")
                         else: # if condition is not met then else node is reached
-                            if self.connections[i+1] == "Else":
+                            if "Else" in self.connections:
                                 print("if not true, skipping next node")
-                                i += 1
+                                i = self.connections.index("Else") - 1
 
                     # handles a basic timer node for counting upwards based on limit set by input
                     elif node == "Else":
-                        return
+                        self.result = "If statement not met"
 
                     # handles for loop, looping based on input amount for range # needs adjustments
                     elif node == "For":
