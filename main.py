@@ -54,6 +54,8 @@ class VirtualKeyboard():
         self.last_press_time = 0
         self.inputStore = []
         self.gr = None
+        self.hovered_key = None
+        self.hover_start_time = None
     # handles drawing of the keyboard
     def drawKeyboard(self, img):
         key_x = self.offsetX
@@ -83,32 +85,45 @@ class VirtualKeyboard():
         if activeNode != "Input":
             return
         
-        current_time = time.time()
-        if current_time - self.last_press_time < 1.0: 
-            return # return if too soon since last key press
-        print("Active node is: ", activeNode) # debug
+        #current_time = time.time()
+        
+        #if current_time - self.last_press_time < 1.0: 
+            #return # return if too soon since last key press
+        
+        #print("Active node is: ", activeNode) # debug
         # for index finger collision
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
 
-        cv2.circle(self.img, (finger_x, finger_y), 10, (10,200,235), -1)
-
+        #cv2.circle(self.img, (finger_x, finger_y), 10, (10,200,235), -1)
+        hovering_now = False
         # to loop through keys
         for key, (x1, y1, x2, y2) in self.keyLocations.items():
             if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
-                if key == "ENTER": # check for enter press to finish the keyboard string
-                    print("Enter pressed") # debug
-                    if self.input_text not in self.inputStore:
-                        self.inputStore.append(self.input_text)
-                    self.input_text = ""
-                    activeNode = ""
-                    self.gr.setActiveNode(activeNode)
-                    return
+                hovering_now = True
+                if self.hovered_key == key:
+                    if time.time() - self.hover_start_time >= 1.0:
+                        if key == "ENTER": # check for enter press to finish the keyboard string
+                            print("Enter pressed") # debug
+                            if self.input_text not in self.inputStore:
+                                self.inputStore.append(self.input_text)
+                            self.input_text = ""
+                            activeNode = ""
+                            self.gr.setActiveNode(activeNode)
+                            return
+                        else:
+                            self.input_text += " " if key == "SPACE" else key # get key collision
+                        self.hovered_key = None
+                        self.hover_start_time = None
+                        print(self.input_text)
                 else:
-                    self.input_text += " " if key == "SPACE" else key # get key collision
-                self.last_press_time = current_time
-                print(self.input_text)
-                return
+                    self.hovered_key = key
+                    self.hover_start_time = time.time()
+                break
+        
+        if not hovering_now:
+            self.hovered_key = None
+            self.hover_start_time = None
     # this script gets correct gesture class instance
     def getScriptInstance(self, gestureIdentifier):
         self.gr = gestureIdentifier
@@ -277,6 +292,7 @@ class GestureRecognizer():
                     self.VK.input_text = ""
                     self.activeNode = ""
                     self.functionRunning = False
+                    self.notRun = True
                     print("Refreshed for starting again")
     # gets script instances
     def setScriptInstance(self, connector, VK):
@@ -482,7 +498,7 @@ class GestureRecognizer():
             else: # runs if run in incorrect place
                 print("Error")
 
-            self.notRun = True # stop running of function more than once
+            self.notRun = False # stop running of function more than once
 
     # this function displays output of current node system
     def displayOutput(self, index_finger, width, height):
