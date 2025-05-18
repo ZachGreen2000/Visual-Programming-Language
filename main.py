@@ -483,6 +483,8 @@ class GestureRecognizer():
 
     # this function displays output of current node system
     def displayOutput(self):
+        # this is for displaying the current input for user
+        cv2.putText(self.img, self.VK.input_text, (950, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0))
         if self.functionRunning:
             cv2.putText(self.img, self.result, (100, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # display in output
 
@@ -559,6 +561,7 @@ class mainLoop():
                 self.gr.draggedNodes(resized_image, nodes, self.index_finger, width, height, timestamp_ms=cv2.getTickCount())
                 self.con.detectConnection(self.index_finger, width, height)
                 self.gr.process_connections(resized_image, self.index_finger, width, height)
+                self.gr.displayOutput()
 
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
