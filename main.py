@@ -245,6 +245,13 @@ class GestureRecognizer():
                 if gesture == "Open_Palm":
                     self.con.stopConnectTool() # stop connect tool on open palm gesture
                     #print("connect mode stopped") #debug
+                if gesture == "Thumb_Down": # resets screen for user to start again
+                    # clear all stores
+                    self.placed_nodes.clear()
+                    self.connections.clear()
+                    self.VK.inputStore.clear()
+                    self.activeNode = ""
+                    print("Refreshed for starting again")
     
     def setScriptInstance(self, connector, VK):
         self.con = connector
