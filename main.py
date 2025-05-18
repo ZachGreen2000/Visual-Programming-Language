@@ -141,7 +141,7 @@ class GUINodes():
             "Print": drawBase(60, offsetY, scale, (0,0,255), -1, "Print"),
             "If": drawBase(60 + offsetX, offsetY, scale, (0,100,255), -1, "If"),
             "Run": drawBase(60 + 2 * offsetX, offsetY, scale, (255,0,0), -1, "Run"),
-            "Timer": drawBase(60 + 3 * offsetX, offsetY, scale, (0,255,0), -1, "Timer"),
+            "Else": drawBase(60 + 3 * offsetX, offsetY, scale, (0,255,0), -1, "Else"),
             "For": drawBase(60 + 4 * offsetX, offsetY, scale, (255,255,0), -1, "For"),
             "Input": drawBase(60 + 5 * offsetX, offsetY, scale, (255,255,245), -1, "Input"),
             "Add": drawBase(60 + 6 * offsetX, offsetY, scale, (120,120,110), -1, "Add"),
@@ -400,37 +400,39 @@ class GestureRecognizer():
                 while i < len(self.connections):
                     node = self.connections[i]
 
-                    if node == "Input": # get value for input node
+                    if node == "Input" and self.connections[i+1] == "Print": # get value for input node
                         if inputs:
                             self.result = inputs.pop(0)
                             print(self.result)
+
                     # handles print node to show an input if there is one
                     elif node == "Print" and self.result is not None:
                         print(self.result)
                         self.functionRunning = True
+
                     # handles addition where if there are two input nodes it tries to add them given they can be passed to floats
                     elif node == "Add":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
+                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) + float(b))
                                 print(self.result)
                             except:
                                 print("Error")
-                            i += 2
+                            
                     # handles subtraction the same way as addition
                     elif node == "Subtract":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
+                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) - float(b))
                                 print(self.result)
                             except:
                                 print("Error")
-                            i += 2
+                            
                     # handles division the same as above with the addition of handling division by zero    
                     elif node == "Divide":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
+                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) / float(b))
@@ -439,16 +441,17 @@ class GestureRecognizer():
                                 print("Error dividing by zero")
                             except:
                                 print("Error")
-                            i += 2  
+                             
                     # same process for equals comparing two values to return a boolean
                     elif node == "Equals":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
+                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             self.result = str(a) == str(b)
                             print(self.result)
 
+                    # handles less than node
                     elif node == "LessThan":
-                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
+                          if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) < float(b))
@@ -456,40 +459,38 @@ class GestureRecognizer():
                             except:
                                 print("Error")
 
+                    # handles more than node
                     elif node == "MoreThan":
-                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
+                          if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) > float(b))
                                 print(self.result)
                             except:
                                 print("Error")
+
                     # handles if statement node by seeing if condition is true or false and either continuing or skipping
                     elif node == "If":
                         condition = self.result
                         if condition:
                             print("continuing")
-                        else:
-                            print("if not true, skipping next node")
-                            i += 1
-                    # handles for loop, looping based on input amount for range
+                        else: # if condition is not met then else node is reached
+                            if self.connections[i+1] == "Else":
+                                print("if not true, skipping next node")
+                                i += 1
+
+                    # handles a basic timer node for counting upwards based on limit set by input
+                    elif node == "Else":
+                        return
+
+                    # handles for loop, looping based on input amount for range # needs adjustments
                     elif node == "For":
                         if inputs:
                             try:
                                 count = int(inputs.pop(0))
                                 for n in range(count):
-                                    print(n+1)
-                            except:
-                                print("Error")
-                    # handles a basic timer node for counting upwards based on limit set by input
-                    elif node == "Timer":
-                        if inputs:
-                            try:
-                                t = 0
-                                timer = float(inputs.pop(0))
-                                while t < timer:
-                                    print(t)
-                                    t += 1
+                                    print(n)
+                                    self.result = n
                             except:
                                 print("Error")
                     
