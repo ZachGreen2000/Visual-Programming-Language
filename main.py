@@ -235,6 +235,7 @@ class GestureRecognizer():
         self.VK = None
         self.result = None
         self.functionRunning = False
+        self.notRun = True
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
@@ -372,9 +373,9 @@ class GestureRecognizer():
 
     # this function controls if run is activated to then activate the output of the code
     def executeOutput(self):
-        if "Run" in self.connections:
+        if "Run" in self.connections and self.notRun:
             if self.connections[-1] == "Run":
-                print("Running output")
+                #print("Running output") # debug
                 # set variables for use
                 self.result = None
                 inputs = self.VK.inputStore
@@ -396,7 +397,7 @@ class GestureRecognizer():
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                self.result = float(a) + float(b)
+                                self.result = str(float(a) + float(b))
                                 print(self.result)
                             except:
                                 print("Error")
@@ -406,7 +407,7 @@ class GestureRecognizer():
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                self.result = float(a) - float(b)
+                                self.result = str(float(a) - float(b))
                                 print(self.result)
                             except:
                                 print("Error")
@@ -416,7 +417,7 @@ class GestureRecognizer():
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                self.result = float(a) / float(b)
+                                self.result = str(float(a) / float(b))
                                 print(self.result)
                             except ZeroDivisionError:
                                 print("Error dividing by zero")
@@ -434,7 +435,7 @@ class GestureRecognizer():
                           if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                self.result = float(a) < float(b)
+                                self.result = str(float(a) < float(b))
                                 print(self.result)
                             except:
                                 print("Error")
@@ -443,7 +444,7 @@ class GestureRecognizer():
                           if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                self.result = float(a) > float(b)
+                                self.result = str(float(a) > float(b))
                                 print(self.result)
                             except:
                                 print("Error")
@@ -477,16 +478,32 @@ class GestureRecognizer():
                                 print("Error")
                     
                     i += 1 # increase for iteration
-      
+            
             else: # runs if run in incorrect place
                 print("Error")
 
+            self.notRun = True # stop running of function more than once
+
     # this function displays output of current node system
-    def displayOutput(self):
+    def displayOutput(self, index_finger, width, height):
+        if self.activeNode == "Input":
+            # for index finger collision
+            finger_x = int((1 - index_finger.x) * width)
+            finger_y = int(index_finger.y * height)
+            cv2.circle(self.img, (finger_x, finger_y), 10, (10,200,235), -1)
         # this is for displaying the current input for user
         cv2.putText(self.img, self.VK.input_text, (950, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0))
         if self.functionRunning:
+            print("Function is running")
             cv2.putText(self.img, self.result, (100, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # display in output
+        # this section is for displaying the stored inputs
+        if self.VK.inputStore:
+            text_offset = 890
+            for i in self.VK.inputStore:
+                cv2.putText(self.img, i, (text_offset, 800), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0))
+                text_offset += 100
+        else:
+            text_offset = 890
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
@@ -561,7 +578,7 @@ class mainLoop():
                 self.gr.draggedNodes(resized_image, nodes, self.index_finger, width, height, timestamp_ms=cv2.getTickCount())
                 self.con.detectConnection(self.index_finger, width, height)
                 self.gr.process_connections(resized_image, self.index_finger, width, height)
-                self.gr.displayOutput()
+                self.gr.displayOutput(self.index_finger, width, height)
 
                 # below code displays image and gives ability to end stream on q press
                 cv2.imshow('MediaPipe Hands', resized_image)
