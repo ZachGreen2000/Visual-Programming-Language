@@ -488,6 +488,8 @@ class GestureRecognizer():
                     elif node == "If":
                         condition = self.result
                         if condition:
+                            if "Else" in self.connections:
+                                self.connections.pop(self.connections.index("Else"))
                             print("continuing")
                         else: # if condition is not met then else node is reached
                             if "Else" in self.connections:
