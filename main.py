@@ -79,7 +79,7 @@ class VirtualKeyboard():
             return
         
         current_time = time.time()
-        if current_time - self.last_press_time < 0.5:
+        if current_time - self.last_press_time < 1.0: 
             return # return if too soon since last key press
         
         # for index finger collision
@@ -340,8 +340,109 @@ class GestureRecognizer():
         if "Run" in self.connections:
             if self.connections[-1] == "Run":
                 print("Running output")
-                return
-            else:
+                # set variables for use
+                result = None
+                inputs = self.VK.inputStore
+                
+                i = 0 # while loop for iterating through connected nodes
+                while i < len(self.connections):
+                    node = self.connections[i]
+
+                    if node == "Input": # get value for input node
+                        if inputs:
+                            result = inputs.pop(0)
+                            print(result)
+                    # handles print node to show an input if there is one
+                    elif node == "Print" and result is not None:
+                        print(result)
+                    # handles addition where if there are two input nodes it tries to add them given they can be passed to floats
+                    elif node == "Add":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                            a, b = inputs.pop(0), inputs.pop(0)
+                            try:
+                                result = float(a) + float(b)
+                                print(result)
+                            except:
+                                print("Error")
+                            i += 2
+                    # handles subtraction the same way as addition
+                    elif node == "Subtract":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                            a, b = inputs.pop(0), inputs.pop(0)
+                            try:
+                                result = float(a) - float(b)
+                                print(result)
+                            except:
+                                print("Error")
+                            i += 2
+                    # handles division the same as above with the addition of handling division by zero    
+                    elif node == "Divide":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                            a, b = inputs.pop(0), inputs.pop(0)
+                            try:
+                                result = float(a) / float(b)
+                                print(result)
+                            except ZeroDivisionError:
+                                print("Error dividing by zero")
+                            except:
+                                print("Error")
+                            i += 2  
+                    # same process for equals comparing two values to return a boolean
+                    elif node == "Equals":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                            a, b = inputs.pop(0), inputs.pop(0)
+                            result = str(a) == str(b)
+                            print(result)
+
+                    elif node == "LessThan":
+                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                            a, b = inputs.pop(0), inputs.pop(0)
+                            try:
+                                result = float(a) < float(b)
+                                print(result)
+                            except:
+                                print("Error")
+
+                    elif node == "MoreThan":
+                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                            a, b = inputs.pop(0), inputs.pop(0)
+                            try:
+                                result = float(a) > float(b)
+                                print(result)
+                            except:
+                                print("Error")
+                    # handles if statement node by seeing if condition is true or false and either continuing or skipping
+                    elif node == "If":
+                        condition = result
+                        if condition:
+                            print("continuing")
+                        else:
+                            print("if not true, skipping next node")
+                            i += 1
+                    # handles for loop, looping based on input amount for range
+                    elif node == "For":
+                        if inputs:
+                            try:
+                                count = int(inputs.pop(0))
+                                for n in range(count):
+                                    print(n+1)
+                            except:
+                                print("Error")
+                    # handles a basic timer node for counting upwards based on limit set by input
+                    elif node == "Timer":
+                        if inputs:
+                            try:
+                                t = 0
+                                timer = float(inputs.pop(0))
+                                while t < timer:
+                                    print(t)
+                                    t += 1
+                            except:
+                                print("Error")
+                    
+                    i += 1 # increase for iteration
+      
+            else: # runs if run in incorrect place
                 print("Error")
 
 # this class houses the logic for the main running loop of the hand tracking
