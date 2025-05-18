@@ -49,6 +49,7 @@ class VirtualKeyboard():
         self.keyLocations = {}
         self.last_press_time = 0
         self.inputStore = []
+        self.gr = None
     # handles drawing of the keyboard
     def drawKeyboard(self, img):
         key_x = self.offsetX
@@ -81,7 +82,7 @@ class VirtualKeyboard():
         current_time = time.time()
         if current_time - self.last_press_time < 1.0: 
             return # return if too soon since last key press
-        
+        print("Active node is: ", activeNode) # debug
         # for index finger collision
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
@@ -92,15 +93,21 @@ class VirtualKeyboard():
         for key, (x1, y1, x2, y2) in self.keyLocations.items():
             if x1 <= finger_x <= x2 and y1 <= finger_y <= y2:
                 if key == "ENTER": # check for enter press to finish the keyboard string
+                    print("Enter pressed") # debug
                     if self.input_text not in self.inputStore:
                         self.inputStore.append(self.input_text)
                     self.input_text = ""
+                    activeNode = ""
+                    self.gr.setActiveNode(activeNode)
+                    return
                 else:
                     self.input_text += " " if key == "SPACE" else key # get key collision
                 self.last_press_time = current_time
                 print(self.input_text)
                 return
-
+    # this script gets correct gesture class instance
+    def getScriptInstance(self, gestureIdentifier):
+        self.gr = gestureIdentifier
 # this class is for drawing the gui for the program using a data store for each block
 class GUINodes():
     def __init__(self, img):
@@ -231,12 +238,20 @@ class GestureRecognizer():
                 #print(gesture) #debug
                 # if gesture is closed fist then node is places and stored
                 if gesture == "Closed_Fist" and self.dragged_node is not None:
-                    self.placed_nodes[self.dragged_node['text']] = drawBase(self.dragged_node['x'],
+                    if self.dragged_node['text'] == "Input" and "Input" in self.placed_nodes: # takes into account a second input node
+                        self.placed_nodes['Input2'] = drawBase(self.dragged_node['x'],
                                                                             self.dragged_node['y'],
                                                                             self.dragged_node['scale'],
                                                                             self.dragged_node['color'],
                                                                             self.dragged_node.get('thickness', -1),
                                                                             self.dragged_node['text'])
+                    else:
+                        self.placed_nodes[self.dragged_node['text']] = drawBase(self.dragged_node['x'],
+                                                                                self.dragged_node['y'],
+                                                                                self.dragged_node['scale'],
+                                                                                self.dragged_node['color'],
+                                                                                self.dragged_node.get('thickness', -1),
+                                                                                self.dragged_node['text'])
                     self.activeNode = self.dragged_node['text']
                     self.dragged_node = None
                     self.is_dragging = False
@@ -250,13 +265,17 @@ class GestureRecognizer():
                     self.placed_nodes.clear()
                     self.connections.clear()
                     self.VK.inputStore.clear()
+                    self.VK.input_text = ""
                     self.activeNode = ""
                     print("Refreshed for starting again")
-    
+    # gets script instances
     def setScriptInstance(self, connector, VK):
         self.con = connector
         self.VK = VK
-
+    # gets active node
+    def setActiveNode(self, node):
+        self.activeNode = node
+    # this function handles the dragging of nodes into the workspace
     def draggedNodes(self, img, nodes, index_finger, width, height, timestamp_ms):
         self.img[timestamp_ms] = img
         # for index finger collision
@@ -364,7 +383,7 @@ class GestureRecognizer():
                         print(result)
                     # handles addition where if there are two input nodes it tries to add them given they can be passed to floats
                     elif node == "Add":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 result = float(a) + float(b)
@@ -374,7 +393,7 @@ class GestureRecognizer():
                             i += 2
                     # handles subtraction the same way as addition
                     elif node == "Subtract":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 result = float(a) - float(b)
@@ -384,7 +403,7 @@ class GestureRecognizer():
                             i += 2
                     # handles division the same as above with the addition of handling division by zero    
                     elif node == "Divide":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 result = float(a) / float(b)
@@ -396,13 +415,13 @@ class GestureRecognizer():
                             i += 2  
                     # same process for equals comparing two values to return a boolean
                     elif node == "Equals":
-                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                        if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             result = str(a) == str(b)
                             print(result)
 
                     elif node == "LessThan":
-                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 result = float(a) < float(b)
@@ -411,7 +430,7 @@ class GestureRecognizer():
                                 print("Error")
 
                     elif node == "MoreThan":
-                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input":
+                          if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 result = float(a) > float(b)
@@ -493,6 +512,7 @@ class mainLoop():
                 results = hands.process(image)
 
                 self.gr.setScriptInstance(self.con, self.vk) # inject correct connector instance into class
+                self.vk.getScriptInstance(self.gr) # gived virtual keyboard class gesture class
                 #get frame and call function
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
                 self.gr.recognizer.recognize_async(mp_image, timestamp_ms=cv2.getTickCount())
