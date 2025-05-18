@@ -34,16 +34,20 @@ class drawBase():
 class VirtualKeyboard():
     def __init__(self):
         # variables for positioning 
-        self.offsetX = 100
-        self.offsetY = 700
+        self.offsetX = 890
+        self.offsetY = 125
         self.scale = 1.5
         self.img = None
         # storage for keys
         self.keys = [
-            ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
-            ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-            ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-            ["Z", "X", "C", "V", "B", "N", "M", "SPACE", "ENTER"]
+            ["1", "2", "3", "4", "5"],
+            ["6", "7", "8", "9", "0"],
+            ["Q", "W", "E", "R", "T"],
+            ["Y", "U", "I", "O", "P"],
+            ["A", "S", "D", "F", "G"],
+            ["H", "J", "K", "L","Z"],
+            ["X", "C", "V", "B", "N"],
+            ["M", "SPACE", "ENTER"]
         ]
         self.input_text = ""
         self.keyLocations = {}
@@ -120,17 +124,17 @@ class GUINodes():
         # dictionairy for each node, draws them on screen and stores them for referenceing 
         self.boxes = {
             "Print": drawBase(60, offsetY, scale, (0,0,255), -1, "Print"),
-            "If": drawBase(60 + offsetX, offsetY, scale, (0,0,255), -1, "If"),
+            "If": drawBase(60 + offsetX, offsetY, scale, (0,100,255), -1, "If"),
             "Run": drawBase(60 + 2 * offsetX, offsetY, scale, (255,0,0), -1, "Run"),
             "Timer": drawBase(60 + 3 * offsetX, offsetY, scale, (0,255,0), -1, "Timer"),
             "For": drawBase(60 + 4 * offsetX, offsetY, scale, (255,255,0), -1, "For"),
             "Input": drawBase(60 + 5 * offsetX, offsetY, scale, (255,255,245), -1, "Input"),
             "Add": drawBase(60 + 6 * offsetX, offsetY, scale, (120,120,110), -1, "Add"),
             "Subtract": drawBase(60 + 7 * offsetX, offsetY, scale, (220,220,210), -1, "Subtract"),
-            "Divide": drawBase(60 + 8 * offsetX, offsetY, scale, (220,220,210), -1, "Divide"),
-            "Equals": drawBase(60 + 9 * offsetX, offsetY, scale, (220,220,210), -1, "Equals"),
-            "LessThan": drawBase(60 + 10 * offsetX, offsetY, scale, (220,220,210), -1, "Less Than"),
-            "MoreThan": drawBase(60 + 11 * offsetX, offsetY, scale, (220,220,210), -1, "More Than")
+            "Divide": drawBase(60 + 8 * offsetX, offsetY, scale, (50,220,110), -1, "Divide"),
+            "Equals": drawBase(60 + 9 * offsetX, offsetY, scale, (220,89,110), -1, "Equals"),
+            "LessThan": drawBase(60 + 10 * offsetX, offsetY, scale, (200,150,210), -1, "Less Than"),
+            "MoreThan": drawBase(60 + 11 * offsetX, offsetY, scale, (90,220,200), -1, "More Than")
         }
         # handles the actual drawing of nodes
         for box in self.boxes.values():
@@ -185,7 +189,7 @@ class DrawBackground():
     def __init__(self, img):
         self.img = img
         cv2.rectangle(img, (10, 20), (1220, 100), (19,69,139), -1) # node background
-        cv2.rectangle(img, (50, 700), (870, 950), (19,69,139), -1) # keyboard background
+        cv2.rectangle(img, (845, 120), (1260, 600), (19,69,139), -1) # keyboard background
         cv2.rectangle(img, (10, 120), (158, 140), (19,69,139), -1) # connector background
         cv2.putText(img, "Connector:", (12, 135), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0,0,0)) # connector text 
 
@@ -193,9 +197,11 @@ class DrawBackground():
 class DrawOutput():
     def __init__(self, img):
         self.img = img
-        cv2.rectangle(img, (885, 120), (1250, 950), (19,69,139), -1)
-        cv2.putText(img, "OUTPUT", (940, 170), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # output title
-        cv2.line(img, (895, 200), (1240, 200), (0,0,0), 2)
+        cv2.rectangle(img, (50, 650), (1250, 950), (19,69,139), -1) # background
+        cv2.putText(img, "OUTPUT", (100, 710), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # output title
+        cv2.putText(img, "INPUT", (900, 710), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0))
+        cv2.line(img, (55, 720), (1245, 720), (0,0,0), 2)
+        cv2.line(img, (845, 660), (845, 940), (0,0,0), 2)
 
 #this class draws a cursor at finger location
 class DrawCursor():
@@ -224,13 +230,15 @@ class GestureRecognizer():
         # process connections variables
         self.connection_start_time = None
         self.connections = []
-        self.img = {}
+        self.img = None
         self.activeNode = ""
         self.VK = None
+        self.result = None
+        self.functionRunning = False
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
-        img = self.img.get(timestamp_ms)
+        #img = self.img.get(timestamp_ms)
         if result.gestures:
             confidence = result.gestures[0][0].score
             gesture = result.gestures[0][0].category_name # stores current gesture
@@ -267,6 +275,7 @@ class GestureRecognizer():
                     self.VK.inputStore.clear()
                     self.VK.input_text = ""
                     self.activeNode = ""
+                    self.functionRunning = False
                     print("Refreshed for starting again")
     # gets script instances
     def setScriptInstance(self, connector, VK):
@@ -277,7 +286,7 @@ class GestureRecognizer():
         self.activeNode = node
     # this function handles the dragging of nodes into the workspace
     def draggedNodes(self, img, nodes, index_finger, width, height, timestamp_ms):
-        self.img[timestamp_ms] = img
+        self.img = img
         # for index finger collision
         finger_x = int((1 - index_finger.x) * width)
         finger_y = int(index_finger.y * height)
@@ -367,7 +376,7 @@ class GestureRecognizer():
             if self.connections[-1] == "Run":
                 print("Running output")
                 # set variables for use
-                result = None
+                self.result = None
                 inputs = self.VK.inputStore
                 
                 i = 0 # while loop for iterating through connected nodes
@@ -376,18 +385,19 @@ class GestureRecognizer():
 
                     if node == "Input": # get value for input node
                         if inputs:
-                            result = inputs.pop(0)
-                            print(result)
+                            self.result = inputs.pop(0)
+                            print(self.result)
                     # handles print node to show an input if there is one
-                    elif node == "Print" and result is not None:
-                        print(result)
+                    elif node == "Print" and self.result is not None:
+                        print(self.result)
+                        self.functionRunning = True
                     # handles addition where if there are two input nodes it tries to add them given they can be passed to floats
                     elif node == "Add":
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                result = float(a) + float(b)
-                                print(result)
+                                self.result = float(a) + float(b)
+                                print(self.result)
                             except:
                                 print("Error")
                             i += 2
@@ -396,8 +406,8 @@ class GestureRecognizer():
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                result = float(a) - float(b)
-                                print(result)
+                                self.result = float(a) - float(b)
+                                print(self.result)
                             except:
                                 print("Error")
                             i += 2
@@ -406,8 +416,8 @@ class GestureRecognizer():
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                result = float(a) / float(b)
-                                print(result)
+                                self.result = float(a) / float(b)
+                                print(self.result)
                             except ZeroDivisionError:
                                 print("Error dividing by zero")
                             except:
@@ -417,15 +427,15 @@ class GestureRecognizer():
                     elif node == "Equals":
                         if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
-                            result = str(a) == str(b)
-                            print(result)
+                            self.result = str(a) == str(b)
+                            print(self.result)
 
                     elif node == "LessThan":
                           if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                result = float(a) < float(b)
-                                print(result)
+                                self.result = float(a) < float(b)
+                                print(self.result)
                             except:
                                 print("Error")
 
@@ -433,13 +443,13 @@ class GestureRecognizer():
                           if i + 2 < len(self.connections) and self.connections[i+1] == "Input" and self.connections[i+2] == "Input2":
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
-                                result = float(a) > float(b)
-                                print(result)
+                                self.result = float(a) > float(b)
+                                print(self.result)
                             except:
                                 print("Error")
                     # handles if statement node by seeing if condition is true or false and either continuing or skipping
                     elif node == "If":
-                        condition = result
+                        condition = self.result
                         if condition:
                             print("continuing")
                         else:
@@ -470,6 +480,11 @@ class GestureRecognizer():
       
             else: # runs if run in incorrect place
                 print("Error")
+
+    # this function displays output of current node system
+    def displayOutput(self):
+        if self.functionRunning:
+            cv2.putText(self.img, self.result, (100, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # display in output
 
 # this class houses the logic for the main running loop of the hand tracking
 class mainLoop():
