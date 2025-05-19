@@ -4,6 +4,7 @@ from mediapipe.tasks.python import vision
 import cv2
 import time
 import os
+import threading
 
 # this classdraws the shape of each block and adds the text
 class drawBase():
@@ -105,7 +106,7 @@ class VirtualKeyboard():
                     if time.time() - self.hover_start_time >= 1.0:
                         if key == "ENTER": # check for enter press to finish the keyboard string
                             print("Enter pressed") # debug
-                            if self.input_text not in self.inputStore:
+                            if self.input_text: #not in self.inputStore:
                                 self.inputStore.append(self.input_text)
                             self.input_text = ""
                             activeNode = ""
@@ -251,6 +252,9 @@ class GestureRecognizer():
         self.result = None
         self.functionRunning = False
         self.notRun = True
+        self.forLoop = False
+        self.t = 0
+        self.current_time = None
 
     # this function handles the gesture recognition
     def IdentifyGesture(self, result, output_image: mp.Image, timestamp_ms: int):
@@ -297,6 +301,7 @@ class GestureRecognizer():
                     self.activeNode = ""
                     self.functionRunning = False
                     self.notRun = True
+                    self.forLoop = False
                     print("Refreshed for starting again")
     # gets script instances
     def setScriptInstance(self, connector, VK):
@@ -389,7 +394,7 @@ class GestureRecognizer():
                     x2,y2 = int(node_b.x), int(node_b.y)
                     cv2.line(img, (x1, y1), (x2, y2), (0,0,0), 2)
         self.VK.proccessKeyboard(self.activeNode, index_finger, width, height)
-        self.executeOutput()
+        self.executeOutput()    
 
     # this function controls if run is activated to then activate the output of the code
     def executeOutput(self):
@@ -478,8 +483,12 @@ class GestureRecognizer():
                     elif node == "If":
                         condition = self.result
                         if condition:
-                            if "Else" in self.connections:
-                                self.connections.pop(self.connections.index("Else"))
+                            if "Else" in self.connections: # removes else condition and else logic from connections
+                                else_index = self.connections.index("Else")
+                                self.connections.pop(else_index)
+                                self.connections.pop(else_index)
+                                self.connections.pop(else_index)
+                                self.connections.pop(else_index)
                             print("continuing")
                         else: # if condition is not met then else node is reached
                             if "Else" in self.connections:
@@ -493,14 +502,9 @@ class GestureRecognizer():
                     # handles for loop, looping based on input amount for range # needs adjustments
                     elif node == "For":
                         if inputs:
-                            try:
-                                count = int(inputs.pop(0))
-                                for n in range(count):
-                                    print(n)
-                                    self.result = str(n)
-                                    time.sleep(1)
-                            except:
-                                print("Error")
+                            self.result = str(1)
+                            self.forLoop = True
+                            self.count = int(inputs.pop(0))
                     
                     i += 1 # increase for iteration
             
@@ -508,6 +512,20 @@ class GestureRecognizer():
                 print("Error")
 
             self.notRun = False # stop running of function more than once
+        
+        if self.forLoop: # runs when for loop is in use
+            if time.time() - self.current_time > 0.5:
+                try:
+                    if self.t <= self.count:
+                        self.result = str(self.t)
+                        self.t += 1
+                        self.current_time = time.time()
+                    else:
+                        self.forLoop = False
+                except:
+                    print("Error")
+        else:
+            self.current_time = time.time()
 
     # this function displays output of current node system
     def displayOutput(self, index_finger, width, height):
