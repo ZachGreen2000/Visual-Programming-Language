@@ -4,7 +4,6 @@ from mediapipe.tasks.python import vision
 import cv2
 import time
 import os
-import threading
 
 # this classdraws the shape of each block and adds the text
 class drawBase():
