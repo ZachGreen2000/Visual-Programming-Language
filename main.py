@@ -262,27 +262,17 @@ class GestureRecognizer():
                 #print(gesture) #debug
                 # if gesture is closed fist then node is places and stored
                 if gesture == "Closed_Fist" and self.dragged_node is not None:
-                    if self.dragged_node['text'] == "Input" and "Input3" in self.placed_nodes:
-                        self.placed_nodes['Input4'] = drawBase(self.dragged_node['x'],
+                    if self.dragged_node['text'] == "Input":
+                        for suffix in ["","2","3","4","5","6"]:
+                            key = f"Input{suffix}" if suffix else "Input"
+                            if key not in self.placed_nodes:
+                                self.placed_nodes[key] = drawBase(self.dragged_node['x'],
                                                                             self.dragged_node['y'],
                                                                             self.dragged_node['scale'],
                                                                             self.dragged_node['color'],
                                                                             self.dragged_node.get('thickness', -1),
                                                                             self.dragged_node['text'])
-                    elif self.dragged_node['text'] == "Input" and "Input2" in self.placed_nodes:
-                        self.placed_nodes['Input3'] = drawBase(self.dragged_node['x'],
-                                                                            self.dragged_node['y'],
-                                                                            self.dragged_node['scale'],
-                                                                            self.dragged_node['color'],
-                                                                            self.dragged_node.get('thickness', -1),
-                                                                            self.dragged_node['text'])
-                    elif self.dragged_node['text'] == "Input" and "Input" in self.placed_nodes: # takes into account a second input node
-                        self.placed_nodes['Input2'] = drawBase(self.dragged_node['x'],
-                                                                            self.dragged_node['y'],
-                                                                            self.dragged_node['scale'],
-                                                                            self.dragged_node['color'],
-                                                                            self.dragged_node.get('thickness', -1),
-                                                                            self.dragged_node['text'])
+                                break
                     else:
                         self.placed_nodes[self.dragged_node['text']] = drawBase(self.dragged_node['x'],
                                                                                 self.dragged_node['y'],
@@ -417,7 +407,7 @@ class GestureRecognizer():
                     if node == "Input" and self.connections[i+1] == "Print": # get value for input node
                         if inputs:
                             self.result = inputs.pop(0)
-                            print(self.result)
+                            #print(self.result)
 
                     # handles print node to show an input if there is one
                     elif node == "Print" and self.result is not None:
@@ -427,17 +417,17 @@ class GestureRecognizer():
 
                     # handles addition where if there are two input nodes it tries to add them given they can be passed to floats
                     elif node == "Add":
-                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
+                        if (self.connections[i-1], self.connections[i+1]) in [("Input", "Input2"), ("Input3", "Input4"), ("Input5", "Input6")]:
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) + float(b))
-                                print(self.result)
+                                print("result after adding: ",self.result)
                             except:
                                 print("Error")
                             
                     # handles subtraction the same way as addition
                     elif node == "Subtract":
-                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
+                        if (self.connections[i-1], self.connections[i+1]) in [("Input", "Input2"), ("Input3", "Input4"), ("Input5", "Input6")]:
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) - float(b))
@@ -447,7 +437,7 @@ class GestureRecognizer():
                             
                     # handles division the same as above with the addition of handling division by zero    
                     elif node == "Divide":
-                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
+                        if (self.connections[i-1], self.connections[i+1]) in [("Input", "Input2"), ("Input3", "Input4"), ("Input5", "Input6")]:
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) / float(b))
@@ -459,24 +449,24 @@ class GestureRecognizer():
                              
                     # same process for equals comparing two values to return a boolean
                     elif node == "Equals":
-                        if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
+                        if (self.connections[i-1], self.connections[i+1]) in [("Input", "Input2"), ("Input3", "Input4"), ("Input5", "Input6")]:
                             a, b = inputs.pop(0), inputs.pop(0)
                             self.result = str(a == b)
                             print(self.result)
 
                     # handles less than node
                     elif node == "LessThan":
-                          if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
+                          if (self.connections[i-1], self.connections[i+1]) in [("Input", "Input2"), ("Input3", "Input4"), ("Input5", "Input6")]:
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) < float(b))
-                                print(self.result)
+                                print("result after less than: ", self.result)
                             except:
                                 print("Error")
 
                     # handles more than node
                     elif node == "MoreThan":
-                          if self.connections[i-1] == "Input" and self.connections[i+1] == "Input2":
+                          if (self.connections[i-1], self.connections[i+1]) in [("Input", "Input2"), ("Input3", "Input4"), ("Input5", "Input6")]:
                             a, b = inputs.pop(0), inputs.pop(0)
                             try:
                                 self.result = str(float(a) > float(b))
@@ -498,7 +488,7 @@ class GestureRecognizer():
 
                     # handles a basic timer node for counting upwards based on limit set by input
                     elif node == "Else":
-                        self.result = "If statement not met"
+                        print("If statement not met")
 
                     # handles for loop, looping based on input amount for range # needs adjustments
                     elif node == "For":
@@ -507,7 +497,8 @@ class GestureRecognizer():
                                 count = int(inputs.pop(0))
                                 for n in range(count):
                                     print(n)
-                                    self.result = n
+                                    self.result = str(n)
+                                    time.sleep(1)
                             except:
                                 print("Error")
                     
@@ -528,7 +519,7 @@ class GestureRecognizer():
         # this is for displaying the current input for user
         cv2.putText(self.img, self.VK.input_text, (950, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0))
         if self.functionRunning:
-            print("Function is running")
+            #print("Function is running")
             cv2.putText(self.img, self.result, (100, 850), cv2.FONT_HERSHEY_COMPLEX, 2, (0,0,0)) # display in output
         # this section is for displaying the stored inputs
         if self.VK.inputStore:
